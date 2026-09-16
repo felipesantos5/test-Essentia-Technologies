@@ -30,3 +30,24 @@ jobs:
         run: uv run mypy
       - name: Tests
         run: uv run pytest --cov --cov-report=term-missing
+
+  n8n-workflows:
+    name: n8n workflow exports
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Validate workflow JSON
+        run: python scripts/validate_workflows.py
+
+  compose:
+    name: Docker Compose config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate compose file
+        run: CLINIC_API_KEY=ci N8N_ENCRYPTION_KEY=ci docker compose config --quiet
+      - name: Build API image
+        run: docker build -t essentia-clinic-api:ci api
