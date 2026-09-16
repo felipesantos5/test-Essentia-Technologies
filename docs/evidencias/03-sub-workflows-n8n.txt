@@ -1,0 +1,132 @@
+# Sub-workflows n8n chamados diretamente (webhook de teste temporário → Execute Workflow)
+# 2026-09-16 16:55 -03 — Gmail ainda não conectado, por isso email_sent=false
+
+$ agendar: paciente sem cadastro
+payload: {"patient_email":"nao.cadastrado@example.com","doctor_id":3,"starts_at":"2026-09-16T17:30:00-03:00","notes":""}
+[
+    {
+        "ok": false,
+        "error": {
+            "code": "PATIENT_NOT_FOUND",
+            "message": "Paciente n\u00e3o cadastrado. Cadastre com register_patient antes de agendar."
+        }
+    }
+]
+
+$ agendar: sucesso
+payload: {"patient_email":"pedro.santos@example.com","doctor_id":3,"starts_at":"2026-09-16T17:30:00-03:00","notes":"Evidência"}
+[
+    {
+        "ok": true,
+        "email_sent": false,
+        "appointment": {
+            "id": 13,
+            "status": "scheduled",
+            "starts_at": "2026-09-16T17:30:00-03:00",
+            "ends_at": "2026-09-16T18:00:00-03:00",
+            "weekday_name": "quarta-feira",
+            "price": {
+                "amount": "320.00",
+                "currency": "BRL",
+                "formatted": "R$ 320,00"
+            },
+            "notes": "Evid\u00eancia",
+            "cancellation_reason": null,
+            "cancelled_at": null,
+            "patient": {
+                "id": 3,
+                "full_name": "Pedro Santos",
+                "email": "pedro.santos@example.com",
+                "phone": "(11) 98888-1003"
+            },
+            "doctor": {
+                "id": 3,
+                "full_name": "Dra. Mariana Costa",
+                "specialty": "Dermatologia"
+            }
+        }
+    }
+]
+
+$ agendar: repetição do mesmo pedido (retry do LLM)
+payload: {"patient_email":"pedro.santos@example.com","doctor_id":3,"starts_at":"2026-09-16T17:30:00-03:00","notes":""}
+[
+    {
+        "ok": false,
+        "status_code": 409,
+        "error": {
+            "code": "APPOINTMENT_ALREADY_BOOKED",
+            "message": "The patient already has this appointment booked.",
+            "details": {
+                "appointment_id": 13
+            }
+        }
+    }
+]
+
+$ cancelar: e-mail de outra pessoa
+payload: {"appointment_id":13,"patient_email":"joao.pereira@example.com","reason":""}
+[
+    {
+        "ok": false,
+        "status_code": 404,
+        "error": {
+            "code": "APPOINTMENT_NOT_FOUND",
+            "message": "Appointment 13 not found.",
+            "details": {
+                "appointment_id": 13
+            }
+        }
+    }
+]
+
+$ cancelar: sucesso
+payload: {"appointment_id":13,"patient_email":"pedro.santos@example.com","reason":"Evidência de cancelamento"}
+[
+    {
+        "ok": true,
+        "email_sent": false,
+        "appointment": {
+            "id": 13,
+            "status": "cancelled",
+            "starts_at": "2026-09-16T17:30:00-03:00",
+            "ends_at": "2026-09-16T18:00:00-03:00",
+            "weekday_name": "quarta-feira",
+            "price": {
+                "amount": "320.00",
+                "currency": "BRL",
+                "formatted": "R$ 320,00"
+            },
+            "notes": "Evid\u00eancia",
+            "cancellation_reason": "Evid\u00eancia de cancelamento",
+            "cancelled_at": "2026-09-16T16:55:24.869416-03:00",
+            "patient": {
+                "id": 3,
+                "full_name": "Pedro Santos",
+                "email": "pedro.santos@example.com",
+                "phone": "(11) 98888-1003"
+            },
+            "doctor": {
+                "id": 3,
+                "full_name": "Dra. Mariana Costa",
+                "specialty": "Dermatologia"
+            }
+        }
+    }
+]
+
+$ cancelar: consulta já cancelada
+payload: {"appointment_id":13,"patient_email":"pedro.santos@example.com","reason":""}
+[
+    {
+        "ok": false,
+        "status_code": 409,
+        "error": {
+            "code": "APPOINTMENT_ALREADY_CANCELLED",
+            "message": "This appointment was already cancelled.",
+            "details": {
+                "appointment_id": 13
+            }
+        }
+    }
+]

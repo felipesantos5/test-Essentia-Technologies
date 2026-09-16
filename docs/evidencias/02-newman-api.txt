@@ -1,0 +1,113 @@
+# newman — pastas 1 a 3 (API) — 2026-09-16 16:54 -03
+(node:42785) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+newman
+
+Essentia Clinic – API e fluxo n8n
+
+❏ 1. API – consulta
+↳ Health (sem autenticação)
+  GET http://localhost:8000/api/v1/health [200 OK, 156B, 52ms]
+  ✓  status 200
+
+↳ Dados da clínica (saudação e encerramento)
+  GET http://localhost:8000/api/v1/clinic [200 OK, 663B, 32ms]
+  ✓  status 200
+  ✓  mensagens configuradas
+
+↳ Especialidades e valores
+  GET http://localhost:8000/api/v1/specialties [200 OK, 577B, 5ms]
+  ✓  status 200
+
+↳ Médicos por especialidade
+  GET http://localhost:8000/api/v1/doctors?specialty_id=2 [200 OK, 554B, 5ms]
+  ✓  status 200
+
+↳ Valores e formas de pagamento
+  GET http://localhost:8000/api/v1/payment-info [200 OK, 1.15kB, 3ms]
+  ✓  status 200
+  ✓  formas de pagamento
+
+↳ Horários disponíveis (cardiologia)
+  GET http://localhost:8000/api/v1/availability?specialty_id=2&date_from=&date_to= [200 OK, 783B, 4ms]
+  ✓  status 200
+  ✓  há horário livre
+
+❏ 2. API – agendamento e cancelamento
+↳ Cadastrar paciente
+  POST http://localhost:8000/api/v1/patients [201 Created, 240B, 15ms]
+  ✓  status 201
+
+↳ Buscar paciente por e-mail
+  GET http://localhost:8000/api/v1/patients?email=postman.1789588459975@example.com [200 OK, 237B, 6ms]
+  ✓  status 200
+  ✓  encontrado
+
+↳ Agendar consulta
+  POST http://localhost:8000/api/v1/appointments [201 Created, 617B, 14ms]
+  ✓  status 201
+  ✓  agendada
+
+↳ Consultar agendamento
+  GET http://localhost:8000/api/v1/appointments/11 [200 OK, 612B, 5ms]
+  ✓  status 200
+
+↳ Consultas futuras do paciente
+  GET http://localhost:8000/api/v1/patients/8/appointments?status=scheduled&upcoming=true [200 OK, 614B, 6ms]
+  ✓  status 200
+
+↳ Cancelar consulta
+  POST http://localhost:8000/api/v1/appointments/11/cancel [200 OK, 661B, 11ms]
+  ✓  status 200
+  ✓  cancelada
+
+❏ 3. API – regras de negócio e erros
+↳ 401 – API key inválida
+  GET http://localhost:8000/api/v1/specialties [401 Unauthorized, 236B, 2ms]
+  ✓  status 401
+  ✓  código INVALID_API_KEY
+
+↳ 409 – horário já ocupado
+  POST http://localhost:8000/api/v1/appointments [201 Created, 600B, 11ms]
+  POST http://localhost:8000/api/v1/appointments [409 Conflict, 272B, 7ms]
+  ✓  status 409
+  ✓  conflito identificado
+
+↳ 422 – horário fora da agenda
+  POST http://localhost:8000/api/v1/appointments [422 Unprocessable Content, 345B, 5ms]
+  ✓  status 422
+  ✓  SLOT_OUTSIDE_SCHEDULE
+
+↳ Buscar consulta passada (seed)
+  GET http://localhost:8000/api/v1/patients?email=luiza.fernandes@example.com [200 OK, 230B, 2ms]
+  ✓  status 200
+  GET http://localhost:8000/api/v1/patients/4/appointments?upcoming=false [200 OK, 582B, 5ms]
+
+↳ 422 – cancelar consulta passada
+  POST http://localhost:8000/api/v1/appointments/5/cancel [422 Unprocessable Content, 267B, 4ms]
+  ✓  status 422
+  ✓  APPOINTMENT_IN_PAST
+
+↳ 404 – cancelar com e-mail de outra pessoa
+  POST http://localhost:8000/api/v1/appointments/11/cancel [404 Not Found, 245B, 4ms]
+  ✓  status 404
+
+┌─────────────────────────┬──────────────────┬─────────────────┐
+│                         │         executed │          failed │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│              iterations │                1 │               0 │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│                requests │               20 │               0 │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│            test-scripts │               18 │               0 │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│      prerequest-scripts │                2 │               0 │
+├─────────────────────────┼──────────────────┼─────────────────┤
+│              assertions │               28 │               0 │
+├─────────────────────────┴──────────────────┴─────────────────┤
+│ total run duration: 408ms                                    │
+├──────────────────────────────────────────────────────────────┤
+│ total data received: 7.05kB (approx)                         │
+├──────────────────────────────────────────────────────────────┤
+│ average response time: 9ms [min: 2ms, max: 52ms, s.d.: 11ms] │
+└──────────────────────────────────────────────────────────────┘
