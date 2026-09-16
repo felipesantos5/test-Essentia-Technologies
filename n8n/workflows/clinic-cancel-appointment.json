@@ -1,0 +1,375 @@
+{
+  "id": "clinicCancelAp01",
+  "name": "Clinic – Cancel appointment",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Cancelar consulta (tool `cancel_appointment`)\nChamado pelo agente somente após confirmação do paciente.\n\n1. `POST /appointments/{id}/cancel` com o e-mail do paciente (checagem de posse na API)\n2. Em caso de sucesso envia a confirmação do cancelamento pelo **Gmail**\n3. Devolve `{ ok, email_sent, appointment | error }` para o agente",
+        "height": 200,
+        "width": 620,
+        "color": 5
+      },
+      "id": "6b4d3d61-6778-53a9-bcb2-302a216b8fc2",
+      "name": "Note: cancel",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "appointment_id",
+              "type": "number"
+            },
+            {
+              "name": "patient_email",
+              "type": "string"
+            },
+            {
+              "name": "reason",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "770d5c8b-a177-5833-afff-2b4a6acd0620",
+      "name": "When called by the agent",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://api:8000/api/v1/appointments/{{ $json.appointment_id }}/cancel",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  patient_email: $json.patient_email,\n  reason: $json.reason || null\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "a150ee5e-8b85-5b20-853c-8425162ff1f4",
+      "name": "Cancel appointment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "clinicApiKeyCred",
+          "name": "Clinic API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2411e3df-ff2f-57c8-843d-f3500fa2244e",
+              "leftValue": "={{ $json.statusCode }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              },
+              "rightValue": 200
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      },
+      "id": "145e7330-e47d-5bef-acfe-9dc75962db23",
+      "name": "Appointment cancelled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        440,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://api:8000/api/v1/clinic",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "3d440a8b-a2ec-51c8-993b-98f4250fd8d1",
+      "name": "Get clinic info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        680,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "clinicApiKeyCred",
+          "name": "Clinic API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6463660b-6623-5512-88a8-2d0b841d3ff0",
+              "name": "name",
+              "value": "={{ $json.body.name }}",
+              "type": "string"
+            },
+            {
+              "id": "0314e08c-14f2-5408-94f3-78cf5f985d8e",
+              "name": "address",
+              "value": "={{ $json.body.address }}",
+              "type": "string"
+            },
+            {
+              "id": "23c48991-53bc-5559-b937-37ef5177e48b",
+              "name": "phone",
+              "value": "={{ $json.body.phone }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "ec4c990f-285e-5eb7-bcf8-3b9913d8aa4f",
+      "name": "Clinic data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        880,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Cancel appointment').item.json.body.patient.email }}",
+        "subject": "=Consulta cancelada: {{ $('Cancel appointment').item.json.body.doctor.specialty }} em {{ DateTime.fromISO($('Cancel appointment').item.json.body.starts_at, { setZone: true }).toFormat(\"dd/LL/yyyy 'às' HH:mm\") }}",
+        "emailType": "html",
+        "message": "=<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#1f2937;line-height:1.5\"><h2 style=\"color:#b91c1c;margin:0 0 12px\">Consulta cancelada</h2><p>Olá, {{ $('Cancel appointment').item.json.body.patient.full_name }}!</p><p>Confirmamos o cancelamento da consulta abaixo:</p><table style=\"border-collapse:collapse;width:100%;border-top:1px solid #e5e7eb\"><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Especialidade</td><td style=\"padding:8px 0\"><strong>{{ $('Cancel appointment').item.json.body.doctor.specialty }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Profissional</td><td style=\"padding:8px 0\"><strong>{{ $('Cancel appointment').item.json.body.doctor.full_name }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Data</td><td style=\"padding:8px 0\"><strong>{{ $('Cancel appointment').item.json.body.weekday_name }}, {{ DateTime.fromISO($('Cancel appointment').item.json.body.starts_at, { setZone: true }).toFormat('dd/LL/yyyy') }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Horário</td><td style=\"padding:8px 0\"><strong>{{ DateTime.fromISO($('Cancel appointment').item.json.body.starts_at, { setZone: true }).toFormat('HH:mm') }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Valor</td><td style=\"padding:8px 0\"><strong>{{ $('Cancel appointment').item.json.body.price.formatted }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Protocolo</td><td style=\"padding:8px 0\"><strong>#{{ $('Cancel appointment').item.json.body.id }}</strong></td></tr></table><p style=\"margin-top:16px\">Quando quiser remarcar, é só falar com a nossa assistente virtual.</p><hr style=\"border:none;border-top:1px solid #e5e7eb;margin:24px 0 12px\"><p style=\"font-size:12px;color:#6b7280\">{{ $json.name }} · {{ $json.address }} · {{ $json.phone }}<br>Mensagem automática enviada pela assistente virtual da clínica.</p></div>",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "={{ $json.name }}"
+        }
+      },
+      "id": "71e86eb0-12f0-5972-b584-46766e1fe76f",
+      "name": "Send cancellation email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1080,
+        100
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "clinicGmailCred1",
+          "name": "Gmail (Clinic)"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "webhookId": "b1b6167f-2c64-51df-834d-f10f03a6a7f1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4edb1f9a-04f1-56d2-a55a-d380e296a3f4",
+              "name": "ok",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "4be850eb-0cd1-5c0e-ad92-9bf03a94ed37",
+              "name": "email_sent",
+              "value": "={{ !$json.error }}",
+              "type": "boolean"
+            },
+            {
+              "id": "c84f996a-40c4-5ec0-a3fa-e616076dd305",
+              "name": "appointment",
+              "value": "={{ $('Cancel appointment').item.json.body }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "fdded3b3-73e9-5902-8301-8d49eaa81850",
+      "name": "Cancellation confirmed",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1300,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4169d6a4-7fbd-5a4b-a3b3-1820540635a8",
+              "name": "ok",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "174817f2-b394-5459-9d31-523c2c9f3cf3",
+              "name": "status_code",
+              "value": "={{ $json.statusCode }}",
+              "type": "number"
+            },
+            {
+              "id": "b748ebcb-548d-542f-aa54-20a69c3e872d",
+              "name": "error",
+              "value": "={{ $json.body.error ?? { code: 'UNEXPECTED_ERROR', message: 'Falha ao cancelar.' } }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "5ed3680e-5ace-5464-a089-e0ceb4369d9e",
+      "name": "Cancellation failed",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        680,
+        320
+      ]
+    }
+  ],
+  "connections": {
+    "When called by the agent": {
+      "main": [
+        [
+          {
+            "node": "Cancel appointment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancel appointment": {
+      "main": [
+        [
+          {
+            "node": "Appointment cancelled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appointment cancelled?": {
+      "main": [
+        [
+          {
+            "node": "Get clinic info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cancellation failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get clinic info": {
+      "main": [
+        [
+          {
+            "node": "Clinic data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clinic data": {
+      "main": [
+        [
+          {
+            "node": "Send cancellation email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send cancellation email": {
+      "main": [
+        [
+          {
+            "node": "Cancellation confirmed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false
+  },
+  "pinData": {},
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

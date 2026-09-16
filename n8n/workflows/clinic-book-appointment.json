@@ -1,0 +1,512 @@
+{
+  "id": "clinicBookAppt01",
+  "name": "Clinic – Book appointment",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Agendar consulta (tool `book_appointment`)\nChamado pelo agente somente após confirmação do paciente.\n\n1. Localiza o paciente pelo e-mail na API\n2. `POST /appointments` (a API valida agenda e conflitos)\n3. Em caso de sucesso envia a confirmação pelo **Gmail** — o destinatário vem da resposta da API, nunca do LLM\n4. Devolve `{ ok, email_sent, appointment | error }` para o agente",
+        "height": 220,
+        "width": 620,
+        "color": 5
+      },
+      "id": "e9e16cfd-872d-505d-acbb-498f7c5d2add",
+      "name": "Note: book",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "patient_email",
+              "type": "string"
+            },
+            {
+              "name": "doctor_id",
+              "type": "number"
+            },
+            {
+              "name": "starts_at",
+              "type": "string"
+            },
+            {
+              "name": "notes",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "d5fd0778-177f-522b-9eb4-1a18a1996f5a",
+      "name": "When called by the agent",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://api:8000/api/v1/patients",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{ $json.patient_email }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "ec6d3049-475a-5a7e-9f6f-07197033cf74",
+      "name": "Find patient by email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "clinicApiKeyCred",
+          "name": "Clinic API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c3e29c2b-5210-5546-984e-a25bb20333c1",
+              "leftValue": "={{ Array.isArray($json.body) && $json.body.length > 0 }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      },
+      "id": "7aea1062-71b9-5bf1-9f20-b689ab149c84",
+      "name": "Patient registered?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        440,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/api/v1/appointments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  patient_id: $json.body[0].id,\n  doctor_id: $('When called by the agent').item.json.doctor_id,\n  starts_at: $('When called by the agent').item.json.starts_at,\n  notes: $('When called by the agent').item.json.notes || null\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "17cf811e-3c0d-546d-89bb-2084eeacc59f",
+      "name": "Create appointment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        680,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "clinicApiKeyCred",
+          "name": "Clinic API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "62ad122b-3409-51ca-be87-415ea41c8f48",
+              "name": "ok",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "6fc499ad-8908-5db6-a33c-690262027991",
+              "name": "error",
+              "value": "={{ { code: 'PATIENT_NOT_FOUND', message: 'Paciente não cadastrado. Cadastre com register_patient antes de agendar.' } }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "1856e9fc-1d76-5059-bf8f-4925c5885251",
+      "name": "Patient not found",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        680,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f241a152-bbb7-5125-9b50-c2f0c3f197c4",
+              "leftValue": "={{ $json.statusCode }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              },
+              "rightValue": 201
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      },
+      "id": "23900576-1779-5e2d-af9c-af6baf28e144",
+      "name": "Appointment booked?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        900,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://api:8000/api/v1/clinic",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "1d8ece2e-8338-5b6b-82d0-d7af521a70e3",
+      "name": "Get clinic info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1120,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "clinicApiKeyCred",
+          "name": "Clinic API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "acc75630-904b-55c4-a9ee-bf9683d4e45b",
+              "name": "name",
+              "value": "={{ $json.body.name }}",
+              "type": "string"
+            },
+            {
+              "id": "b7a126aa-7598-5e58-951f-ae84535e96b1",
+              "name": "address",
+              "value": "={{ $json.body.address }}",
+              "type": "string"
+            },
+            {
+              "id": "15ae1c6a-075b-5138-8ca9-cf46a8e8e419",
+              "name": "phone",
+              "value": "={{ $json.body.phone }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "4ceb82c3-753b-533b-9a71-0eeffa8116aa",
+      "name": "Clinic data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Create appointment').item.json.body.patient.email }}",
+        "subject": "=Consulta confirmada: {{ $('Create appointment').item.json.body.doctor.specialty }} em {{ DateTime.fromISO($('Create appointment').item.json.body.starts_at, { setZone: true }).toFormat(\"dd/LL/yyyy 'às' HH:mm\") }}",
+        "emailType": "html",
+        "message": "=<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#1f2937;line-height:1.5\"><h2 style=\"color:#0f766e;margin:0 0 12px\">Consulta confirmada</h2><p>Olá, {{ $('Create appointment').item.json.body.patient.full_name }}!</p><p>Sua consulta foi agendada com sucesso. Confira os detalhes:</p><table style=\"border-collapse:collapse;width:100%;border-top:1px solid #e5e7eb\"><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Especialidade</td><td style=\"padding:8px 0\"><strong>{{ $('Create appointment').item.json.body.doctor.specialty }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Profissional</td><td style=\"padding:8px 0\"><strong>{{ $('Create appointment').item.json.body.doctor.full_name }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Data</td><td style=\"padding:8px 0\"><strong>{{ $('Create appointment').item.json.body.weekday_name }}, {{ DateTime.fromISO($('Create appointment').item.json.body.starts_at, { setZone: true }).toFormat('dd/LL/yyyy') }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Horário</td><td style=\"padding:8px 0\"><strong>{{ DateTime.fromISO($('Create appointment').item.json.body.starts_at, { setZone: true }).toFormat('HH:mm') }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Valor</td><td style=\"padding:8px 0\"><strong>{{ $('Create appointment').item.json.body.price.formatted }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Protocolo</td><td style=\"padding:8px 0\"><strong>#{{ $('Create appointment').item.json.body.id }}</strong></td></tr></table><p style=\"margin-top:16px\">Chegue com 15 minutos de antecedência e traga um documento com foto. Precisa cancelar? É só falar com a nossa assistente virtual.</p><hr style=\"border:none;border-top:1px solid #e5e7eb;margin:24px 0 12px\"><p style=\"font-size:12px;color:#6b7280\">{{ $json.name }} · {{ $json.address }} · {{ $json.phone }}<br>Mensagem automática enviada pela assistente virtual da clínica.</p></div>",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "={{ $json.name }}"
+        }
+      },
+      "id": "a877129c-f3e9-509a-ae50-0227e6c05bb0",
+      "name": "Send confirmation email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1520,
+        0
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "clinicGmailCred1",
+          "name": "Gmail (Clinic)"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "webhookId": "a314be34-9bec-56f8-9a12-5bd6214ebaa7"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "adbbccb6-17e6-5849-88a7-b66a9b8b3d8f",
+              "name": "ok",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "ddf15536-787e-5e05-926a-5d9931147a26",
+              "name": "email_sent",
+              "value": "={{ !$json.error }}",
+              "type": "boolean"
+            },
+            {
+              "id": "029ab877-669d-5bed-a985-e7d6a8ad67c4",
+              "name": "appointment",
+              "value": "={{ $('Create appointment').item.json.body }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "e672f9d8-b2aa-5291-957d-0c461884d0da",
+      "name": "Booking confirmed",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1740,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8f8e9d0d-b674-522a-848c-d50f338e62f1",
+              "name": "ok",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "960955a8-2914-5758-8ca6-857c606f5aef",
+              "name": "status_code",
+              "value": "={{ $json.statusCode }}",
+              "type": "number"
+            },
+            {
+              "id": "0fbe82ba-ccc2-50f1-8f95-ad71408bc614",
+              "name": "error",
+              "value": "={{ $json.body.error ?? { code: 'UNEXPECTED_ERROR', message: 'Falha ao agendar.' } }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "ed90e247-8215-5512-9623-8473962a7562",
+      "name": "Booking failed",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1120,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "When called by the agent": {
+      "main": [
+        [
+          {
+            "node": "Find patient by email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find patient by email": {
+      "main": [
+        [
+          {
+            "node": "Patient registered?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patient registered?": {
+      "main": [
+        [
+          {
+            "node": "Create appointment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Patient not found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create appointment": {
+      "main": [
+        [
+          {
+            "node": "Appointment booked?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appointment booked?": {
+      "main": [
+        [
+          {
+            "node": "Get clinic info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Booking failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get clinic info": {
+      "main": [
+        [
+          {
+            "node": "Clinic data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clinic data": {
+      "main": [
+        [
+          {
+            "node": "Send confirmation email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send confirmation email": {
+      "main": [
+        [
+          {
+            "node": "Booking confirmed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false
+  },
+  "pinData": {},
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

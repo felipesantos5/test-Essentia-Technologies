@@ -1,0 +1,1155 @@
+{
+  "id": "clinicChatMain01",
+  "name": "Clinic Chat – Main",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 1. Entrada multimodal\n`POST /webhook/clinic-chat` (multipart ou JSON)\n- `session_id`: identifica a conversa (memória)\n- `message`: texto **ou** `audio`: arquivo de voz\n\nO **Switch** decide pelo conteúdo recebido: áudio é transcrito (OpenAI) antes de ir ao agente.",
+        "height": 700,
+        "width": 860,
+        "color": 7
+      },
+      "id": "e8a0311a-4f51-598c-aab3-04745b587a2c",
+      "name": "Note: input",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Agente de IA\nConversa com memória por sessão e usa ferramentas que chamam a **API da clínica** (agenda, pacientes, valores). Agendar e cancelar são sub-workflows que também enviam o e-mail pelo **Gmail**.",
+        "height": 1060,
+        "width": 1600,
+        "color": 6
+      },
+      "id": "5806fad3-d6b7-584a-bac2-ac9a1f3dd676",
+      "name": "Note: agent",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        840,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Resposta no mesmo formato\nPergunta em **áudio** → resposta em áudio (OpenAI TTS, base64 mp3) + texto.\nPergunta em **texto** → resposta em texto.",
+        "height": 700,
+        "width": 900,
+        "color": 4
+      },
+      "id": "7a8238a6-1ad4-5e83-ae33-9377805dd047",
+      "name": "Note: output",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2480,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "clinic-chat",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "http://localhost:8080"
+        }
+      },
+      "id": "b141ea97-ce9c-5964-aa3c-f3a672e8fcfc",
+      "name": "Receive chat message",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        260
+      ],
+      "webhookId": "5f2d8c1a-3b7e-4c9d-8a6f-1e2b3c4d5e6f"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7ffaccf8-faa0-5633-a4f7-1bab68de6606",
+                    "leftValue": "={{ $binary.audio !== undefined }}",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "rightValue": ""
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "70cbc726-8dd1-5697-847a-0def8e18cffe",
+                    "leftValue": "={{ ($json.body.message ?? '').trim() }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    },
+                    "rightValue": ""
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            }
+          ]
+        },
+        "looseTypeValidation": false,
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "invalid"
+        }
+      },
+      "id": "7a964e36-cbd8-5ed5-bc05-ce9ad321ec3f",
+      "name": "Route by message type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "binaryPropertyName": "audio",
+        "options": {
+          "language": "pt"
+        }
+      },
+      "id": "9021a290-8ffc-5a58-a6cf-eab9bdcd62f7",
+      "name": "Transcribe audio",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        440,
+        120
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "clinicOpenAiCred",
+          "name": "OpenAI (Clinic)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5da37a15-b0fd-57df-a9e0-85480932ceee",
+              "name": "session_id",
+              "value": "={{ $('Receive chat message').first().json.body.session_id || $execution.id }}",
+              "type": "string"
+            },
+            {
+              "id": "bffa7a80-8fa3-5fad-9d42-347f85439b79",
+              "name": "message",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "d34363ad-28bb-5bc8-b8c0-e9fe94172576",
+              "name": "input_type",
+              "value": "audio",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "3be21a5f-4fd2-5481-b2be-beb3ffed4f1d",
+      "name": "Normalize audio input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        660,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "caa1bd5b-0599-5155-ad74-43f82e9a5ff2",
+              "name": "session_id",
+              "value": "={{ $json.body.session_id || $execution.id }}",
+              "type": "string"
+            },
+            {
+              "id": "42b3f017-49dd-5494-9c4d-9b2c925a8231",
+              "name": "message",
+              "value": "={{ $json.body.message.trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "201184e6-8791-56ef-b323-501b5fb3d287",
+              "name": "input_type",
+              "value": "text",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "2e1cfcf3-baff-5132-a4ca-00d292d767bc",
+      "name": "Normalize text input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { type: 'error', error: { code: 'INVALID_REQUEST', message: 'Envie session_id e o campo message (texto) ou o arquivo audio.' } } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "603d374b-5499-5500-b3dc-a3045b59adee",
+      "name": "Respond invalid request",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        440,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { type: 'text', session_id: $('Receive chat message').first().json.body.session_id, reply_text: 'Não consegui entender o áudio. Pode gravar de novo ou escrever sua mensagem?', audio: null, error: { code: 'TRANSCRIPTION_FAILED' } } }}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "id": "a9794e4d-4652-500d-8753-723139397c9b",
+      "name": "Respond transcription failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        660,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "=Você é a assistente virtual da Clínica Essentia Saúde. Atenda pacientes em português do Brasil com cordialidade, clareza e objetividade.\n\n## Contexto\n- Agora: {{ $now.setZone('America/Sao_Paulo').setLocale('pt-BR').toFormat(\"cccc, dd/LL/yyyy HH:mm\") }} (fuso America/Sao_Paulo).\n- Canal desta mensagem: {{ $json.input_type === 'audio' ? 'ÁUDIO. Sua resposta será convertida em voz: use frases curtas e naturais, sem markdown, listas, emojis ou links; fale horários como \"9h30\" e valores como \"380 reais\".' : 'TEXTO. Pode usar listas curtas quando ajudar.' }}\n\n## O que você faz\n1. Saudação e encerramento: no início da conversa use a saudação oficial (greeting_message de get_clinic_info). Quando o paciente se despedir ou disser que não precisa de mais nada, use a mensagem de encerramento oficial (closing_message).\n2. Horários disponíveis: descubra a especialidade ou o médico com list_doctors e consulte check_availability. Nunca invente horários. Ofereça no máximo 5 opções por vez, com dia da semana, data e hora.\n3. Valores e formas de pagamento: use get_payment_info e responda somente com os dados retornados.\n4. Agendamento:\n   a. Peça o e-mail do paciente e chame find_patient_by_email.\n   b. Se não houver cadastro, peça nome completo e telefone e chame register_patient.\n   c. Recapitule especialidade, médico, data, horário e valor e peça confirmação explícita. Só depois chame book_appointment, com starts_at exatamente igual a um slot retornado por check_availability.\n   d. Informe o resultado. Se email_sent for true, avise que a confirmação foi enviada por e-mail.\n5. Cancelamento:\n   a. Peça o e-mail, chame find_patient_by_email e depois list_patient_appointments.\n   b. Mostre as consultas futuras (data, horário, médico) e pergunte qual deve ser cancelada.\n   c. Peça confirmação explícita e então chame cancel_appointment. Informe o resultado e se o e-mail foi enviado.\n\n## Regras\n- Nunca mostre IDs internos, nomes de ferramentas, JSON ou mensagens técnicas ao paciente.\n- Se uma ferramenta retornar erro, explique em linguagem simples e ofereça uma alternativa (por exemplo, outro horário quando o horário não estiver mais disponível).\n- Não dê orientação médica nem diagnóstico. Em caso de urgência, oriente a procurar um pronto-socorro ou ligar 192.\n- Para assuntos fora do atendimento da clínica, recuse com gentileza e retome o atendimento.",
+          "maxIterations": 12,
+          "enableStreaming": false
+        }
+      },
+      "id": "7d0d15a9-e758-514a-9f4d-a3745bc0357b",
+      "name": "Clinic assistant",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1300,
+        200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "options": {
+          "reasoningEffort": "low"
+        }
+      },
+      "id": "78765abf-a868-5a20-9436-105464688edf",
+      "name": "OpenAI chat model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        880,
+        520
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "clinicOpenAiCred",
+          "name": "OpenAI (Clinic)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.session_id }}",
+        "contextWindowLength": 20
+      },
+      "id": "b5f67b3c-7ccd-52d9-833d-05cb42537fc1",
+      "name": "Conversation memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1020,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Retorna os dados da clínica (nome, endereço, telefone, e-mail) e as mensagens oficiais de saudação (greeting_message) e de encerramento (closing_message).",
+        "method": "GET",
+        "url": "http://api:8000/api/v1/clinic",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "f0589547-a18a-5971-95c4-837ac537035f",
+      "name": "get_clinic_info",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        1160,
+        520
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "clinicApiKeyCred",
+          "name": "Clinic API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Lista os médicos ativos com especialidade (id e nome), valor da consulta e dias e horários de atendimento. Use para descobrir specialty_id e doctor_id.",
+        "method": "GET",
+        "url": "http://api:8000/api/v1/doctors",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "specialty_id",
+              "value": "={{ $fromAI('specialty_id', 'ID numérico da especialidade para filtrar; vazio para todas', 'string', '') }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "20f43bc9-c9bd-55b6-ac38-3461aae8d933",
+      "name": "list_doctors",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        1340,
+        520
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "clinicApiKeyCred",
+          "name": "Clinic API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Consulta horários livres por médico. Filtre por specialty_id ou doctor_id e pelo período date_from/date_to (YYYY-MM-DD, até 14 dias; padrão: próximos 7 dias). Cada item de slots é o starts_at exato para agendar.",
+        "method": "GET",
+        "url": "http://api:8000/api/v1/availability",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "specialty_id",
+              "value": "={{ $fromAI('specialty_id', 'ID numérico da especialidade; vazio se não souber', 'string', '') }}"
+            },
+            {
+              "name": "doctor_id",
+              "value": "={{ $fromAI('doctor_id', 'ID numérico do médico; vazio se não souber', 'string', '') }}"
+            },
+            {
+              "name": "date_from",
+              "value": "={{ $fromAI('date_from', 'Data inicial YYYY-MM-DD; vazio para hoje', 'string', '') }}"
+            },
+            {
+              "name": "date_to",
+              "value": "={{ $fromAI('date_to', 'Data final YYYY-MM-DD; vazio para 7 dias', 'string', '') }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "d9858722-59ce-525a-8e89-8ca4541c8a0c",
+      "name": "check_availability",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        1520,
+        520
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "clinicApiKeyCred",
+          "name": "Clinic API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Retorna os valores de consulta por especialidade e as formas de pagamento aceitas, incluindo parcelamento.",
+        "method": "GET",
+        "url": "http://api:8000/api/v1/payment-info",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "24325e3e-e8e0-5a9c-9db1-724f43707afc",
+      "name": "get_payment_info",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        1700,
+        520
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "clinicApiKeyCred",
+          "name": "Clinic API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Busca paciente pelo e-mail. Retorna lista vazia quando não há cadastro; caso contrário, o paciente com id, nome, e-mail e telefone.",
+        "method": "GET",
+        "url": "http://api:8000/api/v1/patients",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{ $fromAI('email', 'E-mail informado pelo paciente', 'string') }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9a89ee12-e747-551e-868b-ace038116ff6",
+      "name": "find_patient_by_email",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        1880,
+        520
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "clinicApiKeyCred",
+          "name": "Clinic API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Cadastra um novo paciente. Use somente depois de confirmar com find_patient_by_email que o e-mail não tem cadastro.",
+        "method": "POST",
+        "url": "http://api:8000/api/v1/patients",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "full_name",
+              "value": "={{ $fromAI('full_name', 'Nome completo do paciente', 'string') }}"
+            },
+            {
+              "name": "email",
+              "value": "={{ $fromAI('email', 'E-mail do paciente', 'string') }}"
+            },
+            {
+              "name": "phone",
+              "value": "={{ $fromAI('phone', 'Telefone com DDD, ex.: (11) 91234-5678', 'string') }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "93fad2ce-77c8-57af-b367-0658a7c3ad74",
+      "name": "register_patient",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        2060,
+        520
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "clinicApiKeyCred",
+          "name": "Clinic API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Lista as próximas consultas agendadas de um paciente (id, data e hora, médico, especialidade). Use o id retornado por find_patient_by_email.",
+        "method": "GET",
+        "url": "=http://api:8000/api/v1/patients/{{ $fromAI('patient_id', 'ID numérico do paciente retornado por find_patient_by_email', 'number') }}/appointments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "status",
+              "value": "scheduled"
+            },
+            {
+              "name": "upcoming",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "d145f3a2-1a1a-55eb-bb88-c3695bf0c717",
+      "name": "list_patient_appointments",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        2240,
+        520
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "clinicApiKeyCred",
+          "name": "Clinic API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Agenda a consulta, grava no banco e envia o e-mail de confirmação ao paciente. Chame só após a confirmação explícita do paciente. Retorna ok, email_sent e appointment, ou ok=false com error.",
+        "workflowId": {
+          "__rl": true,
+          "value": "clinicBookAppt01",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "patient_email": "={{ $fromAI('patient_email', 'E-mail do paciente já cadastrado', 'string') }}",
+            "doctor_id": "={{ $fromAI('doctor_id', 'ID do médico retornado por check_availability', 'number') }}",
+            "starts_at": "={{ $fromAI('starts_at', 'Slot exato de check_availability, ex.: 2026-09-17T09:00:00-03:00', 'string') }}",
+            "notes": "={{ $fromAI('notes', 'Observação opcional do paciente; vazio se não houver', 'string', '') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "patient_email",
+              "displayName": "patient_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "doctor_id",
+              "displayName": "doctor_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "starts_at",
+              "displayName": "starts_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "972a8789-2ec9-5b65-8697-c55d2ec6d7a5",
+      "name": "book_appointment",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1520,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Cancela uma consulta futura e envia o e-mail de confirmação do cancelamento. Chame só após a confirmação explícita do paciente. Retorna ok, email_sent e appointment, ou ok=false com error.",
+        "workflowId": {
+          "__rl": true,
+          "value": "clinicCancelAp01",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "appointment_id": "={{ $fromAI('appointment_id', 'ID da consulta retornado por list_patient_appointments', 'number') }}",
+            "patient_email": "={{ $fromAI('patient_email', 'E-mail do paciente dono da consulta', 'string') }}",
+            "reason": "={{ $fromAI('reason', 'Motivo informado pelo paciente; vazio se não houver', 'string', '') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "appointment_id",
+              "displayName": "appointment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "patient_email",
+              "displayName": "patient_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "reason",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "d1884bed-682a-54ac-b0e6-4b5eaa9d0436",
+      "name": "cancel_appointment",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1880,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { type: 'text', session_id: $('Receive chat message').first().json.body.session_id, reply_text: 'Desculpe, tive uma instabilidade para processar sua mensagem. Pode tentar novamente em instantes?', audio: null, error: { code: 'AGENT_FAILED' } } }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "52e386c2-678c-56e3-a82f-cab845881971",
+      "name": "Respond agent failure",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "320eddcb-7c0b-5f52-9712-98d5154b2487",
+              "leftValue": "={{ $('Receive chat message').first().binary?.audio !== undefined }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      },
+      "id": "6e1cf263-eb6f-5047-a5b4-6804d6fc8ed2",
+      "name": "Reply with audio?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2540,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "generate",
+        "model": "tts-1",
+        "input": "={{ $json.output.replace(/[*_#`>]/g, '') }}",
+        "voice": "nova",
+        "options": {
+          "response_format": "mp3",
+          "binaryPropertyOutput": "data"
+        }
+      },
+      "id": "49ad34b6-7e16-5057-a398-aea5fb952f64",
+      "name": "Generate speech",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        2760,
+        100
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "clinicOpenAiCred",
+          "name": "OpenAI (Clinic)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "binaryPropertyName": "data",
+        "destinationKey": "audio_base64",
+        "options": {}
+      },
+      "id": "aa55c31e-bb4e-52de-a0fa-fa18f092835a",
+      "name": "Encode audio as base64",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        2980,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  type: 'audio',\n  session_id: $('Receive chat message').first().json.body.session_id,\n  transcript: $('Transcribe audio').first().json.text,\n  reply_text: $('Clinic assistant').first().json.output,\n  audio: { mime_type: 'audio/mpeg', base64: $json.audio_base64 }\n} }}",
+        "options": {}
+      },
+      "id": "292373cd-fde4-5c13-ab34-db40c132f958",
+      "name": "Respond with audio",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3200,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  type: 'text',\n  session_id: $('Receive chat message').first().json.body.session_id,\n  transcript: $('Receive chat message').first().binary?.audio ? $('Transcribe audio').first().json.text : null,\n  reply_text: $('Clinic assistant').first().json.output,\n  audio: null\n} }}",
+        "options": {}
+      },
+      "id": "304e4471-46c1-53a4-8218-86b84a60aaf5",
+      "name": "Respond with text",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2980,
+        320
+      ]
+    }
+  ],
+  "connections": {
+    "Receive chat message": {
+      "main": [
+        [
+          {
+            "node": "Route by message type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by message type": {
+      "main": [
+        [
+          {
+            "node": "Transcribe audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Normalize text input",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond invalid request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe audio": {
+      "main": [
+        [
+          {
+            "node": "Normalize audio input",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond transcription failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize audio input": {
+      "main": [
+        [
+          {
+            "node": "Clinic assistant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize text input": {
+      "main": [
+        [
+          {
+            "node": "Clinic assistant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI chat model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Clinic assistant",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Clinic assistant",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_clinic_info": {
+      "ai_tool": [
+        [
+          {
+            "node": "Clinic assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "list_doctors": {
+      "ai_tool": [
+        [
+          {
+            "node": "Clinic assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_availability": {
+      "ai_tool": [
+        [
+          {
+            "node": "Clinic assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_payment_info": {
+      "ai_tool": [
+        [
+          {
+            "node": "Clinic assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "find_patient_by_email": {
+      "ai_tool": [
+        [
+          {
+            "node": "Clinic assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "register_patient": {
+      "ai_tool": [
+        [
+          {
+            "node": "Clinic assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "list_patient_appointments": {
+      "ai_tool": [
+        [
+          {
+            "node": "Clinic assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "book_appointment": {
+      "ai_tool": [
+        [
+          {
+            "node": "Clinic assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cancel_appointment": {
+      "ai_tool": [
+        [
+          {
+            "node": "Clinic assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clinic assistant": {
+      "main": [
+        [
+          {
+            "node": "Reply with audio?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond agent failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply with audio?": {
+      "main": [
+        [
+          {
+            "node": "Generate speech",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond with text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate speech": {
+      "main": [
+        [
+          {
+            "node": "Encode audio as base64",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond with text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Encode audio as base64": {
+      "main": [
+        [
+          {
+            "node": "Respond with audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false
+  },
+  "pinData": {},
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
