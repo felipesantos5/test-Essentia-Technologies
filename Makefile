@@ -31,9 +31,10 @@ ps: ## Show service status and health
 reset: ## Stop the stack and DELETE database and n8n volumes
 	$(COMPOSE) down -v
 
-n8n-sync: ## Re-import and re-publish credentials and workflows, then restart n8n
-	FORCE_SYNC=1 $(COMPOSE) run --rm n8n-import
-	$(COMPOSE) restart n8n
+n8n-sync: ## Re-import and re-publish the repository workflows (n8n is stopped meanwhile)
+	$(COMPOSE) stop n8n
+	FORCE_WORKFLOW_SYNC=1 $(COMPOSE) run --rm n8n-import
+	$(COMPOSE) start n8n
 
 n8n-export: ## Export the workflows from n8n back into n8n/workflows
 	@for pair in clinicChatMain01:clinic-chat-main clinicBookAppt01:clinic-book-appointment \

@@ -148,7 +148,7 @@ As credenciais `OpenAI (Clinic)` e `Clinic API key` já vêm preenchidas pelo bo
 |---|---|
 | `make up` / `make down` | Sobe ou derruba a stack (mantém os volumes) |
 | `make reset` | Derruba e **apaga** os volumes (banco e dados do n8n) |
-| `make n8n-sync` | Força a reimportação e o publish dos workflows do repositório |
+| `make n8n-sync` | Para o n8n, reimporta e publica os workflows do repositório e sobe de novo (credenciais e token do Gmail são preservados) |
 | `make n8n-export` | Exporta os workflows editados na UI de volta para `n8n/workflows/` |
 | `make verify` | Gate local: lint, mypy strict, testes com cobertura e validação dos workflows |
 | `make smoke` | Smoke test ponta a ponta contra a stack rodando |

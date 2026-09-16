@@ -3,7 +3,8 @@
 #   1. imports credentials rendered from the environment;
 #   2. imports the versioned workflows and publishes them (production webhooks need it).
 # Each step only runs when its input changed since the last successful run, so a restart
-# never wipes the Gmail OAuth token or edits made in the UI. FORCE_SYNC=1 re-applies all.
+# never wipes the Gmail OAuth token or edits made in the UI. FORCE_WORKFLOW_SYNC=1 re-imports
+# the workflows even when unchanged (credentials keep following their own content).
 set -eu
 
 STATE_DIR="/home/node/.n8n/bootstrap-state"
@@ -20,7 +21,7 @@ digest() { cat "$@" | sha256sum | cut -d' ' -f1; }
 needs_sync() {
   name="$1"
   shift
-  [ "${FORCE_SYNC:-0}" = "1" ] || [ "$(cat "$STATE_DIR/$name" 2>/dev/null)" != "$(digest "$@")" ]
+  [ "$(cat "$STATE_DIR/$name" 2>/dev/null)" != "$(digest "$@")" ]
 }
 mark_synced() {
   name="$1"
@@ -40,7 +41,7 @@ for credential in clinic-api openai gmail; do
   fi
 done
 
-if needs_sync workflows "$WORKFLOWS_DIR"/*.json; then
+if [ "${FORCE_WORKFLOW_SYNC:-0}" = "1" ] || needs_sync workflows "$WORKFLOWS_DIR"/*.json; then
   log "importing workflows"
   n8n import:workflow --separate --input="$WORKFLOWS_DIR"
   for id in $WORKFLOW_IDS; do

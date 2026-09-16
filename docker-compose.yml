@@ -46,7 +46,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
       GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
-      FORCE_SYNC: ${FORCE_SYNC:-0}
+      FORCE_WORKFLOW_SYNC: ${FORCE_WORKFLOW_SYNC:-0}
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n/workflows:/workflows:ro
@@ -94,7 +94,8 @@ services:
       n8n:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost/"]
+      # 127.0.0.1, not localhost: busybox resolves localhost to ::1 and nginx listens on IPv4.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
       interval: 10s
       timeout: 5s
       retries: 5
