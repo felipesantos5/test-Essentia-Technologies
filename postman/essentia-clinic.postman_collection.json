@@ -1,0 +1,1080 @@
+{
+  "info": {
+    "_postman_id": "9bc95164-dc20-5d1a-8073-f348afa01932",
+    "name": "Essentia Clinic – API e fluxo n8n",
+    "description": "Coleção do case técnico. Rode `make up` antes.\n\n- **API** (`api_base_url`): endpoints da API mock da clínica. Defina `api_key` com o valor de `CLINIC_API_KEY` do `.env`.\n- **Fluxo n8n** (`webhook_url`): mensagens de texto e áudio para o agente. Exigem as credenciais OpenAI/Gmail configuradas.\n\nAs requisições da pasta API encadeiam variáveis (médico, horário, paciente e consulta) e podem ser executadas em sequência pelo Collection Runner.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "X-API-Key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{api_key}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "api_base_url",
+      "value": "http://localhost:8000/api/v1"
+    },
+    {
+      "key": "webhook_url",
+      "value": "http://localhost:8080/webhook/clinic-chat"
+    },
+    {
+      "key": "api_key",
+      "value": "cole-aqui-o-CLINIC_API_KEY"
+    },
+    {
+      "key": "session_id",
+      "value": ""
+    },
+    {
+      "key": "doctor_id",
+      "value": ""
+    },
+    {
+      "key": "slot_starts_at",
+      "value": ""
+    },
+    {
+      "key": "patient_id",
+      "value": ""
+    },
+    {
+      "key": "patient_email",
+      "value": ""
+    },
+    {
+      "key": "appointment_id",
+      "value": ""
+    },
+    {
+      "key": "past_appointment_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. API – consulta",
+      "item": [
+        {
+          "name": "Health (sem autenticação)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/health",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dados da clínica (saudação e encerramento)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/clinic",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "clinic"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('mensagens configuradas', () => pm.expect(pm.response.json().greeting_message).to.not.be.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Especialidades e valores",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/specialties",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "specialties"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Médicos por especialidade",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/doctors?specialty_id=2",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "doctors"
+              ],
+              "query": [
+                {
+                  "key": "specialty_id",
+                  "value": "2"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Valores e formas de pagamento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/payment-info",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "payment-info"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('formas de pagamento', () => pm.expect(pm.response.json().payment_methods).to.have.length.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Horários disponíveis (cardiologia)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/availability?specialty_id=2&date_from=&date_to=",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "availability"
+              ],
+              "query": [
+                {
+                  "key": "specialty_id",
+                  "value": "2"
+                },
+                {
+                  "key": "date_from",
+                  "value": ""
+                },
+                {
+                  "key": "date_to",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Sem datas: próximos 7 dias. Salva o primeiro horário livre em `doctor_id` e `slot_starts_at`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const doctor = pm.response.json().doctors.find(d => d.days.length);",
+                  "pm.test('há horário livre', () => pm.expect(doctor).to.exist);",
+                  "pm.collectionVariables.set('doctor_id', doctor.doctor_id);",
+                  "pm.collectionVariables.set('slot_starts_at', doctor.days[0].slots[0]);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. API – agendamento e cancelamento",
+      "item": [
+        {
+          "name": "Cadastrar paciente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{api_base_url}}/patients",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Paciente Postman\",\n  \"email\": \"{{patient_email}}\",\n  \"phone\": \"(11) 97777-0000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('patient_email', `postman.${Date.now()}@example.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('patient_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar paciente por e-mail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/patients?email={{patient_email}}",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "patients"
+              ],
+              "query": [
+                {
+                  "key": "email",
+                  "value": "{{patient_email}}"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('encontrado', () => pm.expect(pm.response.json()).to.have.length(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agendar consulta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{api_base_url}}/appointments",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "appointments"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"{{patient_id}}\",\n  \"doctor_id\": \"{{doctor_id}}\",\n  \"starts_at\": \"{{slot_starts_at}}\",\n  \"notes\": \"Criado pelo Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('agendada', () => pm.expect(body.status).to.eql('scheduled'));",
+                  "pm.collectionVariables.set('appointment_id', body.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar agendamento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/appointments/{{appointment_id}}",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "appointments",
+                "{{appointment_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultas futuras do paciente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/patients/{{patient_id}}/appointments?status=scheduled&upcoming=true",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "patients",
+                "{{patient_id}}",
+                "appointments"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "scheduled"
+                },
+                {
+                  "key": "upcoming",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelar consulta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{api_base_url}}/appointments/{{appointment_id}}/cancel",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "appointments",
+                "{{appointment_id}}",
+                "cancel"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_email\": \"{{patient_email}}\",\n  \"reason\": \"Teste de cancelamento\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('cancelada', () => pm.expect(pm.response.json().status).to.eql('cancelled'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. API – regras de negócio e erros",
+      "item": [
+        {
+          "name": "401 – API key inválida",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "chave-errada"
+              }
+            ],
+            "url": {
+              "raw": "{{api_base_url}}/specialties",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "specialties"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('código INVALID_API_KEY', () => pm.expect(pm.response.json().error.code).to.eql('INVALID_API_KEY'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "409 – horário já ocupado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{api_base_url}}/appointments",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "appointments"
+              ]
+            },
+            "description": "Agenda o mesmo horário duas vezes; a segunda tentativa retorna 409.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"{{patient_id}}\",\n  \"doctor_id\": \"{{doctor_id}}\",\n  \"starts_at\": \"{{slot_starts_at}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{api_base_url}}/appointments'),",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-API-Key': pm.variables.get('api_key') },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ patient_id: Number(pm.variables.get('patient_id')), doctor_id: Number(pm.variables.get('doctor_id')), starts_at: pm.variables.get('slot_starts_at') }) },",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('conflito identificado', () => pm.expect(pm.response.json().error.code).to.be.oneOf(['APPOINTMENT_ALREADY_BOOKED', 'SLOT_UNAVAILABLE']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 – horário fora da agenda",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{api_base_url}}/appointments",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "appointments"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"{{patient_id}}\",\n  \"doctor_id\": \"{{doctor_id}}\",\n  \"starts_at\": \"2030-01-01T03:17:00-03:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 422', () => pm.response.to.have.status(422));",
+                  "pm.test('SLOT_OUTSIDE_SCHEDULE', () => pm.expect(pm.response.json().error.code).to.eql('SLOT_OUTSIDE_SCHEDULE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar consulta passada (seed)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/patients?email=luiza.fernandes@example.com",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "patients"
+              ],
+              "query": [
+                {
+                  "key": "email",
+                  "value": "luiza.fernandes@example.com"
+                }
+              ]
+            },
+            "description": "A paciente Luiza tem uma consulta de 7 dias atrás criada pelo seed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const patient = pm.response.json()[0];",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn(`{{api_base_url}}/patients/${patient.id}/appointments?upcoming=false`),",
+                  "  header: { 'X-API-Key': pm.variables.get('api_key') },",
+                  "}, (err, res) => pm.collectionVariables.set('past_appointment_id', res.json()[0].id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 – cancelar consulta passada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{api_base_url}}/appointments/{{past_appointment_id}}/cancel",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "appointments",
+                "{{past_appointment_id}}",
+                "cancel"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_email\": \"luiza.fernandes@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 422', () => pm.response.to.have.status(422));",
+                  "pm.test('APPOINTMENT_IN_PAST', () => pm.expect(pm.response.json().error.code).to.eql('APPOINTMENT_IN_PAST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 – cancelar com e-mail de outra pessoa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{api_base_url}}/appointments/{{appointment_id}}/cancel",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "appointments",
+                "{{appointment_id}}",
+                "cancel"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_email\": \"outra.pessoa@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Fluxo n8n (webhook do chat)",
+      "description": "Exige `OPENAI_API_KEY` configurada. Agendar/cancelar pelo chat também usa o Gmail.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.collectionVariables.get('session_id')) {",
+              "  pm.collectionVariables.set('session_id', `postman-${Date.now()}`);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Texto – saudação",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('reply_text preenchido', () => pm.expect(body.reply_text).to.be.a('string').and.not.empty);",
+                  "pm.test('resposta em texto', () => pm.expect(body.type).to.eql('text'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "session_id",
+                  "value": "{{session_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "message",
+                  "value": "Olá, boa tarde!",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{webhook_url}}",
+              "host": [
+                "{{webhook_url}}"
+              ]
+            },
+            "description": "Saudação oficial vinda de GET /clinic."
+          }
+        },
+        {
+          "name": "Texto – horários disponíveis",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('reply_text preenchido', () => pm.expect(body.reply_text).to.be.a('string').and.not.empty);",
+                  "pm.test('resposta em texto', () => pm.expect(body.type).to.eql('text'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "session_id",
+                  "value": "{{session_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "message",
+                  "value": "Quais horários de dermatologia estão livres nos próximos dias?",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{webhook_url}}",
+              "host": [
+                "{{webhook_url}}"
+              ]
+            },
+            "description": "O agente chama list_doctors e check_availability."
+          }
+        },
+        {
+          "name": "Texto – valores e pagamento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('reply_text preenchido', () => pm.expect(body.reply_text).to.be.a('string').and.not.empty);",
+                  "pm.test('resposta em texto', () => pm.expect(body.type).to.eql('text'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "session_id",
+                  "value": "{{session_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "message",
+                  "value": "Quanto custa a consulta de cardiologia e quais as formas de pagamento?",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{webhook_url}}",
+              "host": [
+                "{{webhook_url}}"
+              ]
+            },
+            "description": "O agente chama get_payment_info."
+          }
+        },
+        {
+          "name": "Áudio – pergunta sobre valores (responde em áudio)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('resposta em áudio', () => pm.expect(body.type).to.eql('audio'));",
+                  "pm.test('mp3 em base64', () => pm.expect(body.audio.base64.length).to.be.above(1000));",
+                  "pm.test('transcrição', () => pm.expect(body.transcript).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "session_id",
+                  "value": "{{session_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "audio",
+                  "type": "file",
+                  "src": "docs/samples/pergunta-pagamento.wav"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{webhook_url}}",
+              "host": [
+                "{{webhook_url}}"
+              ]
+            },
+            "description": "Se o Postman não localizar o arquivo, selecione docs/samples/pergunta-pagamento.wav no campo audio."
+          }
+        },
+        {
+          "name": "Texto – encerramento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('reply_text preenchido', () => pm.expect(body.reply_text).to.be.a('string').and.not.empty);",
+                  "pm.test('resposta em texto', () => pm.expect(body.type).to.eql('text'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "session_id",
+                  "value": "{{session_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "message",
+                  "value": "Era só isso, obrigado!",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{webhook_url}}",
+              "host": [
+                "{{webhook_url}}"
+              ]
+            },
+            "description": "Mensagem de encerramento oficial."
+          }
+        },
+        {
+          "name": "400 – requisição inválida",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "session_id",
+                  "value": "{{session_id}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{webhook_url}}",
+              "host": [
+                "{{webhook_url}}"
+              ]
+            },
+            "description": "Sem message e sem audio: o Switch envia para a saída de fallback."
+          }
+        }
+      ]
+    }
+  ]
+}
