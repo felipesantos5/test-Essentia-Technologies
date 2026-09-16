@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clínica Essentia Saúde · Atendimento</title>
+    <meta name="description" content="Assistente virtual da clínica: horários, agendamentos, cancelamentos e valores." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="chat" aria-labelledby="chat-title">
+      <header class="chat__header">
+        <div class="chat__identity">
+          <span class="chat__avatar" aria-hidden="true">🩺</span>
+          <div>
+            <h1 id="chat-title" class="chat__title">Clínica Essentia Saúde</h1>
+            <p class="chat__subtitle">Assistente virtual · responde em texto ou voz</p>
+          </div>
+        </div>
+        <button type="button" class="button button--ghost" id="new-conversation">Nova conversa</button>
+      </header>
+
+      <section class="chat__messages" id="messages" aria-live="polite" aria-label="Mensagens">
+        <div class="empty" id="empty-state">
+          <p class="empty__title">Como posso ajudar?</p>
+          <p class="empty__text">Escreva ou grave um áudio. Pergunta em áudio recebe resposta em áudio.</p>
+          <div class="empty__suggestions">
+            <button type="button" class="chip" data-suggestion>Olá!</button>
+            <button type="button" class="chip" data-suggestion>Quais horários de cardiologia estão livres?</button>
+            <button type="button" class="chip" data-suggestion>Quero agendar uma consulta</button>
+            <button type="button" class="chip" data-suggestion>Quero cancelar minha consulta</button>
+            <button type="button" class="chip" data-suggestion>Quais os valores e formas de pagamento?</button>
+          </div>
+        </div>
+      </section>
+
+      <form class="composer" id="composer" autocomplete="off">
+        <div class="composer__recording" id="recording-indicator" hidden>
+          <span class="composer__dot" aria-hidden="true"></span>
+          Gravando <span id="recording-timer">0:00</span>
+          <button type="button" class="button button--link" id="cancel-recording">Descartar</button>
+        </div>
+        <label class="visually-hidden" for="message-input">Mensagem</label>
+        <textarea
+          id="message-input"
+          class="composer__input"
+          rows="1"
+          maxlength="1000"
+          placeholder="Digite sua mensagem…"
+        ></textarea>
+        <button type="button" class="button button--icon" id="record-button" aria-label="Gravar áudio" title="Gravar áudio">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
+        </button>
+        <button type="submit" class="button button--primary" id="send-button" aria-label="Enviar mensagem">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.3 10l12.6 2-12.6 2z"/></svg>
+        </button>
+      </form>
+    </main>
+
+    <template id="message-template">
+      <article class="message">
+        <div class="message__bubble">
+          <div class="message__text"></div>
+        </div>
+        <span class="message__meta"></span>
+      </article>
+    </template>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
