@@ -48,7 +48,7 @@ ban-relative-imports = "all"
 python_version = "3.13"
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["src", "tests"]
+files = ["src", "tests", "migrations"]
 
 [tool.pydantic-mypy]
 init_forbid_extra = true
