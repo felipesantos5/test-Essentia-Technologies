@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clínica Essentia Saúde · Painel de consultas</title>
+    <meta name="description" content="Consultas agendadas e canceladas por período, médico e status." />
+    <meta name="theme-color" content="#f0f2f5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#111b21" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>" />
+    <link rel="stylesheet" href="painel.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar__brand">
+        <img class="topbar__logo" src="logo-whats.png" alt="" />
+        <div>
+          <h1 class="topbar__title">Painel de consultas</h1>
+          <p class="topbar__subtitle">Clínica Essentia Saúde</p>
+        </div>
+      </div>
+      <a class="topbar__link" href="./">Abrir o chat</a>
+    </header>
+
+    <main class="page">
+      <form class="filters" id="filters" aria-label="Filtros">
+        <label class="field">
+          <span>De</span>
+          <input type="date" id="date-from" name="date_from" required />
+        </label>
+        <label class="field">
+          <span>Até</span>
+          <input type="date" id="date-to" name="date_to" required />
+        </label>
+        <label class="field">
+          <span>Médico</span>
+          <select id="doctor" name="doctor_id">
+            <option value="">Todos</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Status</span>
+          <select id="status" name="status">
+            <option value="">Todas</option>
+            <option value="scheduled">Agendadas</option>
+            <option value="cancelled">Canceladas</option>
+          </select>
+        </label>
+        <div class="filters__actions">
+          <button type="button" class="chip" data-days="1">Hoje</button>
+          <button type="button" class="chip" data-days="7">7 dias</button>
+          <button type="button" class="chip" data-days="14">14 dias</button>
+          <button type="submit" class="button-primary">Atualizar</button>
+        </div>
+      </form>
+
+      <section class="summary" aria-label="Resumo do período" aria-live="polite">
+        <div class="stat">
+          <span class="stat__value" id="stat-scheduled">–</span>
+          <span class="stat__label">agendadas</span>
+        </div>
+        <div class="stat">
+          <span class="stat__value" id="stat-cancelled">–</span>
+          <span class="stat__label">canceladas</span>
+        </div>
+        <div class="stat">
+          <span class="stat__value" id="stat-revenue">–</span>
+          <span class="stat__label">previsto nas agendadas</span>
+        </div>
+      </section>
+
+      <p class="state" id="state" role="status" hidden></p>
+      <div id="days"></div>
+    </main>
+
+    <template id="day-template">
+      <section class="day">
+        <h2 class="day__title"></h2>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Horário</th>
+                <th scope="col">Paciente</th>
+                <th scope="col">Médico</th>
+                <th scope="col">Especialidade</th>
+                <th scope="col">Valor</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </template>
+
+    <template id="row-template">
+      <tr>
+        <td class="cell-time"></td>
+        <td class="cell-patient">
+          <span class="patient__name"></span>
+          <span class="patient__contact"></span>
+        </td>
+        <td class="cell-doctor"></td>
+        <td class="cell-specialty"></td>
+        <td class="cell-price"></td>
+        <td class="cell-status"><span class="badge"></span></td>
+      </tr>
+    </template>
+
+    <script src="painel.js" type="module"></script>
+  </body>
+</html>
