@@ -1,0 +1,126 @@
+              <!-- Intro -->
+              <tr>
+                <td class="email-px" style="padding: 40px 48px 0;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td bgcolor="#e1f2ee" style="background-color: #e1f2ee; border-radius: 999px; padding: 6px 14px; font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #0b5c56;">&#10003;&nbsp; Consulta confirmada</td>
+                    </tr>
+                  </table>
+                  <h1 class="email-title" style="margin: 20px 0 0; font-size: 28px; line-height: 36px; font-weight: 700; color: #16302b;">Tudo certo, {{ $json.patient_first_name }}!</h1>
+                  <p style="margin: 12px 0 0; font-size: 16px; line-height: 26px; color: #5c706b;">Sua consulta de <strong style="color: #16302b;">{{ $json.specialty }}</strong> está agendada. Guarde os detalhes abaixo e salve o horário na sua agenda.</p>
+                </td>
+              </tr>
+
+              <!-- When -->
+              <tr>
+                <td class="email-px" style="padding: 28px 48px 0;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f8f7" style="background-color: #f5f8f7; border: 1px solid #d8e3e0; border-radius: 12px;">
+                    <tr>
+                      <td width="64" valign="top" style="padding: 20px 0 20px 20px;">
+                        <table role="presentation" width="64" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color: #ffffff; border: 1px solid #d8e3e0; border-radius: 10px;">
+                          <tr>
+                            <td align="center" bgcolor="#0f766e" style="background-color: #0f766e; border-radius: 9px 9px 0 0; padding: 4px 0; font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: 1px; color: #ffffff;">{{ $json.month_short }}</td>
+                          </tr>
+                          <tr>
+                            <td align="center" style="padding: 6px 0 0; font-size: 26px; line-height: 30px; font-weight: 700; color: #16302b;">{{ $json.day }}</td>
+                          </tr>
+                          <tr>
+                            <td align="center" style="padding: 0 0 8px; font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.5px; color: #5c706b;">{{ $json.weekday_short }}</td>
+                          </tr>
+                        </table>
+                      </td>
+                      <td valign="middle" style="padding: 20px 20px 20px 16px;">
+                        <p style="margin: 0; font-size: 17px; line-height: 24px; font-weight: 700; color: #16302b;">{{ $json.date_long }}</p>
+                        <p style="margin: 4px 0 0; font-size: 16px; line-height: 24px; font-weight: 600; color: #0f766e;">{{ $json.time_range }}</p>
+                        <p style="margin: 4px 0 0; font-size: 14px; line-height: 22px; color: #5c706b;">{{ $json.doctor_name }} &middot; {{ $json.specialty }}</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Details -->
+              <tr>
+                <td class="email-px" style="padding: 32px 48px 0;">
+                  <p style="margin: 0 0 4px; font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #5c706b;">Detalhes da consulta</p>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 15px; line-height: 22px;">
+                    <tr>
+                      <td class="email-label" width="136" valign="top" style="padding: 12px 12px 12px 0; border-bottom: 1px solid #e6eeec; color: #5c706b;">Paciente</td>
+                      <td valign="top" style="padding: 12px 0; border-bottom: 1px solid #e6eeec; font-weight: 600; color: #16302b;">{{ $json.patient_name }}</td>
+                    </tr>
+                    <tr>
+                      <td class="email-label" width="136" valign="top" style="padding: 12px 12px 12px 0; border-bottom: 1px solid #e6eeec; color: #5c706b;">Valor</td>
+                      <td valign="top" style="padding: 12px 0; border-bottom: 1px solid #e6eeec; font-weight: 600; color: #16302b;">{{ $json.price }}</td>
+                    </tr>
+                    <tr>
+                      <td class="email-label" width="136" valign="top" style="padding: 12px 12px 12px 0; border-bottom: 1px solid #e6eeec; color: #5c706b;">Protocolo</td>
+                      <td valign="top" style="padding: 12px 0; border-bottom: 1px solid #e6eeec; font-weight: 600; color: #16302b;">{{ $json.protocol }}</td>
+                    </tr>
+                    <tr>
+                      <td class="email-label" width="136" valign="top" style="padding: 12px 12px 12px 0; color: #5c706b;">Local</td>
+                      <td valign="top" style="padding: 12px 0; font-weight: 600; color: #16302b;">{{ $json.clinic_address }}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Actions -->
+              <tr>
+                <td class="email-px" style="padding: 28px 48px 0;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td class="email-stack" width="50%" valign="top" style="padding-right: 6px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                          <tr>
+                            <td align="center" bgcolor="#0f766e" style="background-color: #0f766e; border-radius: 10px; mso-padding-alt: 14px 20px;">
+                              <a href="{{ $json.calendar_url }}" target="_blank" style="display: block; padding: 14px 20px; font-size: 15px; line-height: 20px; font-weight: 700; color: #ffffff; text-decoration: none; border-radius: 10px;">Adicionar à agenda</a>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                      <td class="email-stack email-stack-gap" width="50%" valign="top" style="padding-left: 6px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                          <tr>
+                            <td align="center" bgcolor="#ffffff" style="background-color: #ffffff; border: 1px solid #0f766e; border-radius: 10px; mso-padding-alt: 13px 20px;">
+                              <a href="{{ $json.maps_url }}" target="_blank" style="display: block; padding: 13px 20px; font-size: 15px; line-height: 20px; font-weight: 700; color: #0f766e; text-decoration: none; border-radius: 10px;">Como chegar</a>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Before the appointment -->
+              <tr>
+                <td class="email-px" style="padding: 32px 48px 40px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f8f7" style="background-color: #f5f8f7; border-radius: 12px;">
+                    <tr>
+                      <td style="padding: 24px;">
+                        <p style="margin: 0 0 16px; font-size: 16px; line-height: 24px; font-weight: 700; color: #16302b;">Antes da consulta</p>
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 15px; line-height: 22px; color: #16302b;">
+                          <tr>
+                            <td width="36" valign="top" style="padding: 0 0 12px;">
+                              <table role="presentation" width="24" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" bgcolor="#e1f2ee" style="background-color: #e1f2ee; border-radius: 12px; width: 24px; height: 24px; font-size: 12px; line-height: 24px; font-weight: 700; color: #0b5c56;">1</td></tr></table>
+                            </td>
+                            <td valign="top" style="padding: 1px 0 12px;">Chegue com <strong>15 minutos de antecedência</strong>.</td>
+                          </tr>
+                          <tr>
+                            <td width="36" valign="top" style="padding: 0 0 12px;">
+                              <table role="presentation" width="24" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" bgcolor="#e1f2ee" style="background-color: #e1f2ee; border-radius: 12px; width: 24px; height: 24px; font-size: 12px; line-height: 24px; font-weight: 700; color: #0b5c56;">2</td></tr></table>
+                            </td>
+                            <td valign="top" style="padding: 1px 0 12px;">Traga um <strong>documento com foto</strong>.</td>
+                          </tr>
+                          <tr>
+                            <td width="36" valign="top">
+                              <table role="presentation" width="24" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" bgcolor="#e1f2ee" style="background-color: #e1f2ee; border-radius: 12px; width: 24px; height: 24px; font-size: 12px; line-height: 24px; font-weight: 700; color: #0b5c56;">3</td></tr></table>
+                            </td>
+                            <td valign="top" style="padding: 1px 0 0;">Precisa cancelar? É só falar com a nossa <strong>assistente virtual</strong>, por texto ou áudio.</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>

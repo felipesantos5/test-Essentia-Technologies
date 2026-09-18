@@ -1,23 +1,23 @@
 {
   "id": "clinicBookAppt01",
-  "name": "Clinic – Book appointment",
+  "name": "Clínica – Agendar consulta",
   "active": false,
   "isArchived": false,
   "nodes": [
     {
       "parameters": {
-        "content": "## Agendar consulta (tool `book_appointment`)\nChamado pelo agente somente após confirmação do paciente.\n\n1. Localiza o paciente pelo e-mail na API\n2. `POST /appointments` (a API valida agenda e conflitos)\n3. Em caso de sucesso envia a confirmação pelo **Gmail** — o destinatário vem da resposta da API, nunca do LLM\n4. Devolve `{ ok, email_sent, appointment | error }` para o agente",
-        "height": 220,
-        "width": 620,
+        "content": "## Agendar consulta (ferramenta `book_appointment`)\nSub-workflow chamado pelo agente **somente após a confirmação do paciente**.\nEntradas: `patient_email`, `doctor_id`, `starts_at`, `notes`.\n\n1. **Buscar paciente por e-mail** na API. Sem cadastro, devolve `PATIENT_NOT_FOUND` e o agente cadastra antes.\n2. **Criar consulta na API** (`POST /appointments`). A API valida horário livre e conflitos (`409`).\n3. Se criou (`201`): **Buscar dados da clínica** → **Preparar e-mail** (datas em pt-BR, valor, links de agenda e mapa) → **Enviar e-mail de confirmação** pelo Gmail.\n   - O destinatário é fixo (`felipesantosmarcelino2004@gmail.com`), nunca vem do texto do modelo.\n   - O HTML é gerado de `n8n/email-templates` (`make email-templates`).\n   - O Gmail tenta **3 vezes**; se falhar, a consulta continua válida e volta `email_sent: false`.\n4. Devolve ao agente `{ ok, email_sent, appointment }` ou `{ ok: false, error }`.",
+        "height": 480,
+        "width": 780,
         "color": 5
       },
       "id": "e9e16cfd-872d-505d-acbb-498f7c5d2add",
-      "name": "Note: book",
+      "name": "Nota: agendar",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         -80,
-        -260
+        -500
       ]
     },
     {
@@ -45,13 +45,15 @@
         }
       },
       "id": "d5fd0778-177f-522b-9eb4-1a18a1996f5a",
-      "name": "When called by the agent",
+      "name": "Quando o agente chamar",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
         0,
         200
-      ]
+      ],
+      "notes": "Entradas: patient_email, doctor_id, starts_at, notes",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -78,7 +80,7 @@
         }
       },
       "id": "ec6d3049-475a-5a7e-9f6f-07197033cf74",
-      "name": "Find patient by email",
+      "name": "Buscar paciente por e-mail",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
@@ -90,7 +92,12 @@
           "id": "clinicApiKeyCred",
           "name": "Clinic API key"
         }
-      }
+      },
+      "notes": "GET /patients?email= · 3 tentativas",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -104,7 +111,7 @@
           "conditions": [
             {
               "id": "c3e29c2b-5210-5546-984e-a25bb20333c1",
-              "leftValue": "={{ Array.isArray($json.body) && $json.body.length > 0 }}",
+              "leftValue": "={{ $json.statusCode === 200 && Array.isArray($json.body) && $json.body.length > 0 }}",
               "operator": {
                 "type": "boolean",
                 "operation": "true",
@@ -119,13 +126,15 @@
         "options": {}
       },
       "id": "7aea1062-71b9-5bf1-9f20-b689ab149c84",
-      "name": "Patient registered?",
+      "name": "Paciente cadastrado?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
         440,
         200
-      ]
+      ],
+      "notes": "HTTP 200 com lista não vazia",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -135,7 +144,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  patient_id: $json.body[0].id,\n  doctor_id: $('When called by the agent').item.json.doctor_id,\n  starts_at: $('When called by the agent').item.json.starts_at,\n  notes: $('When called by the agent').item.json.notes || null\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  patient_id: $json.body[0].id,\n  doctor_id: $('Quando o agente chamar').item.json.doctor_id,\n  starts_at: $('Quando o agente chamar').item.json.starts_at,\n  notes: $('Quando o agente chamar').item.json.notes || null\n}) }}",
         "options": {
           "response": {
             "response": {
@@ -146,7 +155,7 @@
         }
       },
       "id": "17cf811e-3c0d-546d-89bb-2084eeacc59f",
-      "name": "Create appointment",
+      "name": "Criar consulta na API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
@@ -158,7 +167,9 @@
           "id": "clinicApiKeyCred",
           "name": "Clinic API key"
         }
-      }
+      },
+      "notes": "POST /appointments · a API valida agenda e conflitos",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -173,7 +184,7 @@
             {
               "id": "6fc499ad-8908-5db6-a33c-690262027991",
               "name": "error",
-              "value": "={{ { code: 'PATIENT_NOT_FOUND', message: 'Paciente não cadastrado. Cadastre com register_patient antes de agendar.' } }}",
+              "value": "={{ $json.statusCode === 200 ? { code: 'PATIENT_NOT_FOUND', message: 'Paciente não cadastrado. Cadastre com register_patient antes de agendar.' } : ($json.body?.error ?? { code: 'UNEXPECTED_ERROR', message: 'Falha ao consultar o paciente.' }) }}",
               "type": "object"
             }
           ]
@@ -182,13 +193,15 @@
         "options": {}
       },
       "id": "1856e9fc-1d76-5059-bf8f-4925c5885251",
-      "name": "Patient not found",
+      "name": "Paciente não encontrado",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
         680,
         320
-      ]
+      ],
+      "notes": "ok: false · PATIENT_NOT_FOUND (ou erro da API)",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -216,13 +229,15 @@
         "options": {}
       },
       "id": "23900576-1779-5e2d-af9c-af6baf28e144",
-      "name": "Appointment booked?",
+      "name": "Consulta criada?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
         900,
         100
-      ]
+      ],
+      "notes": "HTTP 201",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -240,7 +255,7 @@
         }
       },
       "id": "1d8ece2e-8338-5b6b-82d0-d7af521a70e3",
-      "name": "Get clinic info",
+      "name": "Buscar dados da clínica",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
@@ -252,28 +267,135 @@
           "id": "clinicApiKeyCred",
           "name": "Clinic API key"
         }
-      }
+      },
+      "notes": "GET /clinic · dados usados no e-mail · 3 tentativas",
+      "notesInFlow": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
         "assignments": {
           "assignments": [
             {
-              "id": "acc75630-904b-55c4-a9ee-bf9683d4e45b",
-              "name": "name",
+              "id": "f218685e-1f62-5049-b101-30e0e9fedce7",
+              "name": "subject",
+              "value": "=Consulta confirmada: {{ $('Criar consulta na API').item.json.body.doctor.specialty }} em {{ DateTime.fromISO($('Criar consulta na API').item.json.body.starts_at, { setZone: true }).toFormat(\"dd/LL/yyyy 'às' HH:mm\") }}",
+              "type": "string"
+            },
+            {
+              "id": "4270a506-407b-54a8-b4ef-98220addd722",
+              "name": "preheader",
+              "value": "={{ $('Criar consulta na API').item.json.body.doctor.specialty }} com {{ $('Criar consulta na API').item.json.body.doctor.full_name }}, {{ DateTime.fromISO($('Criar consulta na API').item.json.body.starts_at, { setZone: true }).setLocale('pt-BR').toFormat(\"cccc, d 'de' LLLL 'às' HH:mm\") }}. Chegue com 15 minutos de antecedência.",
+              "type": "string"
+            },
+            {
+              "id": "d1ef9448-9272-533d-9999-a04228c5c26e",
+              "name": "patient_name",
+              "value": "={{ $('Criar consulta na API').item.json.body.patient.full_name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }}",
+              "type": "string"
+            },
+            {
+              "id": "82f7000c-a088-50f4-9e72-36430e47cba9",
+              "name": "patient_first_name",
+              "value": "={{ $('Criar consulta na API').item.json.body.patient.full_name.split(' ')[0].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }}",
+              "type": "string"
+            },
+            {
+              "id": "6f8b2302-e9a6-54a2-a5e7-12611762a1c8",
+              "name": "specialty",
+              "value": "={{ $('Criar consulta na API').item.json.body.doctor.specialty }}",
+              "type": "string"
+            },
+            {
+              "id": "61caf1c7-f8ed-5a8d-9a51-99ac22cfa5ec",
+              "name": "doctor_name",
+              "value": "={{ $('Criar consulta na API').item.json.body.doctor.full_name }}",
+              "type": "string"
+            },
+            {
+              "id": "4f9b06ce-2be1-5231-bc0a-c7892d21ba24",
+              "name": "protocol",
+              "value": "=#{{ $('Criar consulta na API').item.json.body.id }}",
+              "type": "string"
+            },
+            {
+              "id": "75dc0105-e4ad-5b56-a374-4a1dc0b94427",
+              "name": "date_long",
+              "value": "={{ DateTime.fromISO($('Criar consulta na API').item.json.body.starts_at, { setZone: true }).setLocale('pt-BR').toFormat(\"cccc, d 'de' LLLL 'de' yyyy\").replace(/^./, letter => letter.toUpperCase()) }}",
+              "type": "string"
+            },
+            {
+              "id": "02790051-dc5a-5ddb-8012-430e69b54e8c",
+              "name": "time_range",
+              "value": "={{ DateTime.fromISO($('Criar consulta na API').item.json.body.starts_at, { setZone: true }).toFormat('HH:mm') }} às {{ DateTime.fromISO($('Criar consulta na API').item.json.body.ends_at, { setZone: true }).toFormat('HH:mm') }}",
+              "type": "string"
+            },
+            {
+              "id": "3bf280da-d2d8-5fa1-afca-ba9aa3399998",
+              "name": "day",
+              "value": "={{ DateTime.fromISO($('Criar consulta na API').item.json.body.starts_at, { setZone: true }).toFormat('dd') }}",
+              "type": "string"
+            },
+            {
+              "id": "67e3b5a4-77fe-5424-92b6-68737b359851",
+              "name": "month_short",
+              "value": "={{ DateTime.fromISO($('Criar consulta na API').item.json.body.starts_at, { setZone: true }).setLocale('pt-BR').toFormat('LLL').replace('.', '').toUpperCase() }}",
+              "type": "string"
+            },
+            {
+              "id": "5861e9dd-1a05-5ead-9406-a22b2d5aa1f5",
+              "name": "weekday_short",
+              "value": "={{ DateTime.fromISO($('Criar consulta na API').item.json.body.starts_at, { setZone: true }).setLocale('pt-BR').toFormat('ccc').replace('.', '').toUpperCase() }}",
+              "type": "string"
+            },
+            {
+              "id": "6a695c3a-509a-5318-9a99-e8047cd55b55",
+              "name": "price",
+              "value": "={{ $('Criar consulta na API').item.json.body.price.formatted }}",
+              "type": "string"
+            },
+            {
+              "id": "e81bbef8-9d05-5150-a711-7a0bbc635b41",
+              "name": "calendar_url",
+              "value": "={{ 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent('Consulta de ' + $('Criar consulta na API').item.json.body.doctor.specialty + ' · ' + $json.body.name) + '&dates=' + DateTime.fromISO($('Criar consulta na API').item.json.body.starts_at, { setZone: true }).toUTC().toFormat(\"yyyyLLdd'T'HHmmss'Z'\") + '/' + DateTime.fromISO($('Criar consulta na API').item.json.body.ends_at, { setZone: true }).toUTC().toFormat(\"yyyyLLdd'T'HHmmss'Z'\") + '&details=' + encodeURIComponent($('Criar consulta na API').item.json.body.doctor.full_name + ' · Protocolo #' + $('Criar consulta na API').item.json.body.id) + '&location=' + encodeURIComponent($json.body.address) }}",
+              "type": "string"
+            },
+            {
+              "id": "c2a508d1-4827-5b68-b550-55f692e112c9",
+              "name": "maps_url",
+              "value": "={{ 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent($json.body.address) }}",
+              "type": "string"
+            },
+            {
+              "id": "b0a30342-e9ca-587c-a761-04453a0d298a",
+              "name": "clinic_name",
               "value": "={{ $json.body.name }}",
               "type": "string"
             },
             {
-              "id": "b7a126aa-7598-5e58-951f-ae84535e96b1",
-              "name": "address",
+              "id": "e133c5c8-acca-53d8-aff4-086190976198",
+              "name": "clinic_address",
               "value": "={{ $json.body.address }}",
               "type": "string"
             },
             {
-              "id": "15ae1c6a-075b-5138-8ca9-cf46a8e8e419",
-              "name": "phone",
+              "id": "ca654628-db21-5d64-bebc-7709bfb49a1a",
+              "name": "clinic_phone",
               "value": "={{ $json.body.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "40232c5e-9c7e-5bfc-bcfe-dc9f85ceb88d",
+              "name": "clinic_phone_href",
+              "value": "={{ 'tel:+55' + $json.body.phone.replace(/\\D/g, '') }}",
+              "type": "string"
+            },
+            {
+              "id": "7c44e3c5-61cc-50d3-9904-3efb55a772c6",
+              "name": "clinic_email",
+              "value": "={{ $json.body.email }}",
               "type": "string"
             }
           ]
@@ -282,27 +404,29 @@
         "options": {}
       },
       "id": "4ceb82c3-753b-533b-9a71-0eeffa8116aa",
-      "name": "Clinic data",
+      "name": "Preparar e-mail",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
         1320,
         0
-      ]
+      ],
+      "notes": "Formata datas, valor e links; escapa o nome do paciente",
+      "notesInFlow": true
     },
     {
       "parameters": {
-        "sendTo": "={{ $('Create appointment').item.json.body.patient.email }}",
-        "subject": "=Consulta confirmada: {{ $('Create appointment').item.json.body.doctor.specialty }} em {{ DateTime.fromISO($('Create appointment').item.json.body.starts_at, { setZone: true }).toFormat(\"dd/LL/yyyy 'às' HH:mm\") }}",
+        "sendTo": "felipesantosmarcelino2004@gmail.com",
+        "subject": "={{ $json.subject }}",
         "emailType": "html",
-        "message": "=<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#1f2937;line-height:1.5\"><h2 style=\"color:#0f766e;margin:0 0 12px\">Consulta confirmada</h2><p>Olá, {{ $('Create appointment').item.json.body.patient.full_name }}!</p><p>Sua consulta foi agendada com sucesso. Confira os detalhes:</p><table style=\"border-collapse:collapse;width:100%;border-top:1px solid #e5e7eb\"><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Especialidade</td><td style=\"padding:8px 0\"><strong>{{ $('Create appointment').item.json.body.doctor.specialty }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Profissional</td><td style=\"padding:8px 0\"><strong>{{ $('Create appointment').item.json.body.doctor.full_name }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Data</td><td style=\"padding:8px 0\"><strong>{{ $('Create appointment').item.json.body.weekday_name }}, {{ DateTime.fromISO($('Create appointment').item.json.body.starts_at, { setZone: true }).toFormat('dd/LL/yyyy') }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Horário</td><td style=\"padding:8px 0\"><strong>{{ DateTime.fromISO($('Create appointment').item.json.body.starts_at, { setZone: true }).toFormat('HH:mm') }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Valor</td><td style=\"padding:8px 0\"><strong>{{ $('Create appointment').item.json.body.price.formatted }}</strong></td></tr><tr><td style=\"padding:8px 0;color:#6b7280;width:130px\">Protocolo</td><td style=\"padding:8px 0\"><strong>#{{ $('Create appointment').item.json.body.id }}</strong></td></tr></table><p style=\"margin-top:16px\">Chegue com 15 minutos de antecedência e traga um documento com foto. Precisa cancelar? É só falar com a nossa assistente virtual.</p><hr style=\"border:none;border-top:1px solid #e5e7eb;margin:24px 0 12px\"><p style=\"font-size:12px;color:#6b7280\">{{ $json.name }} · {{ $json.address }} · {{ $json.phone }}<br>Mensagem automática enviada pela assistente virtual da clínica.</p></div>",
+        "message": "=<!DOCTYPE html>\n<html lang=\"pt-BR\" xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n<meta name=\"x-apple-disable-message-reformatting\">\n<meta name=\"format-detection\" content=\"telephone=no, date=no, address=no, email=no\">\n<meta name=\"color-scheme\" content=\"light\">\n<meta name=\"supported-color-schemes\" content=\"light\">\n<title>{{ $json.subject }}</title>\n<!--[if mso]>\n<noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>\n<style>table, td, p, a, h1 { font-family: Arial, Helvetica, sans-serif !important; }</style>\n<![endif]-->\n<style>\n  body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }\n  table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }\n  img { -ms-interpolation-mode: bicubic; }\n  a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; }\n\n  @media only screen and (max-width: 620px) {\n    .email-container { width: 100% !important; }\n    .email-px { padding-left: 24px !important; padding-right: 24px !important; }\n    .email-title { font-size: 24px !important; line-height: 32px !important; }\n    .email-stack { display: block !important; width: 100% !important; padding-left: 0 !important; padding-right: 0 !important; }\n    .email-stack-gap { padding-top: 12px !important; }\n    .email-label { width: 104px !important; }\n  }\n</style>\n</head>\n<body style=\"margin: 0; padding: 0; width: 100%; background-color: #eef3f2;\">\n\n<!-- Preheader: shown next to the subject in the inbox, hidden inside the message. -->\n<div style=\"display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #eef3f2; opacity: 0;\">\n  {{ $json.preheader }}\n  &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;\n  &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;\n  &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;\n</div>\n\n<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"#eef3f2\" style=\"background-color: #eef3f2;\">\n  <tr>\n    <td align=\"center\" style=\"padding: 32px 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #16302b;\">\n      <!--[if mso]><table role=\"presentation\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\"><tr><td><![endif]-->\n      <table role=\"presentation\" class=\"email-container\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width: 100%; max-width: 600px;\">\n\n        <!-- Card -->\n        <tr>\n          <td bgcolor=\"#ffffff\" style=\"background-color: #ffffff; border: 1px solid #d8e3e0; border-radius: 16px;\">\n            <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n\n              <!-- Header -->\n              <tr>\n                <td align=\"center\" bgcolor=\"#0b5c56\" style=\"background-color: #0b5c56; background-image: linear-gradient(135deg, #083f3b 0%, #0f766e 100%); border-radius: 15px 15px 0 0; padding: 36px 24px 32px;\">\n                  <img src=\"https://raw.githubusercontent.com/felipesantos5/test-Essentia-Technologies/main/n8n/email-templates/assets/logo-essentia.png\" width=\"180\" height=\"108\" alt=\"{{ $json.clinic_name }}\" style=\"display: block; width: 180px; max-width: 180px; height: auto; border: 0; outline: none; text-decoration: none; color: #ffffff; font-size: 20px; font-weight: 700; line-height: 28px;\">\n                </td>\n              </tr>\n\n              <!-- Intro -->\n              <tr>\n                <td class=\"email-px\" style=\"padding: 40px 48px 0;\">\n                  <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n                    <tr>\n                      <td bgcolor=\"#e1f2ee\" style=\"background-color: #e1f2ee; border-radius: 999px; padding: 6px 14px; font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #0b5c56;\">&#10003;&nbsp; Consulta confirmada</td>\n                    </tr>\n                  </table>\n                  <h1 class=\"email-title\" style=\"margin: 20px 0 0; font-size: 28px; line-height: 36px; font-weight: 700; color: #16302b;\">Tudo certo, {{ $json.patient_first_name }}!</h1>\n                  <p style=\"margin: 12px 0 0; font-size: 16px; line-height: 26px; color: #5c706b;\">Sua consulta de <strong style=\"color: #16302b;\">{{ $json.specialty }}</strong> está agendada. Guarde os detalhes abaixo e salve o horário na sua agenda.</p>\n                </td>\n              </tr>\n\n              <!-- When -->\n              <tr>\n                <td class=\"email-px\" style=\"padding: 28px 48px 0;\">\n                  <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"#f5f8f7\" style=\"background-color: #f5f8f7; border: 1px solid #d8e3e0; border-radius: 12px;\">\n                    <tr>\n                      <td width=\"64\" valign=\"top\" style=\"padding: 20px 0 20px 20px;\">\n                        <table role=\"presentation\" width=\"64\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"#ffffff\" style=\"background-color: #ffffff; border: 1px solid #d8e3e0; border-radius: 10px;\">\n                          <tr>\n                            <td align=\"center\" bgcolor=\"#0f766e\" style=\"background-color: #0f766e; border-radius: 9px 9px 0 0; padding: 4px 0; font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: 1px; color: #ffffff;\">{{ $json.month_short }}</td>\n                          </tr>\n                          <tr>\n                            <td align=\"center\" style=\"padding: 6px 0 0; font-size: 26px; line-height: 30px; font-weight: 700; color: #16302b;\">{{ $json.day }}</td>\n                          </tr>\n                          <tr>\n                            <td align=\"center\" style=\"padding: 0 0 8px; font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.5px; color: #5c706b;\">{{ $json.weekday_short }}</td>\n                          </tr>\n                        </table>\n                      </td>\n                      <td valign=\"middle\" style=\"padding: 20px 20px 20px 16px;\">\n                        <p style=\"margin: 0; font-size: 17px; line-height: 24px; font-weight: 700; color: #16302b;\">{{ $json.date_long }}</p>\n                        <p style=\"margin: 4px 0 0; font-size: 16px; line-height: 24px; font-weight: 600; color: #0f766e;\">{{ $json.time_range }}</p>\n                        <p style=\"margin: 4px 0 0; font-size: 14px; line-height: 22px; color: #5c706b;\">{{ $json.doctor_name }} &middot; {{ $json.specialty }}</p>\n                      </td>\n                    </tr>\n                  </table>\n                </td>\n              </tr>\n\n              <!-- Details -->\n              <tr>\n                <td class=\"email-px\" style=\"padding: 32px 48px 0;\">\n                  <p style=\"margin: 0 0 4px; font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #5c706b;\">Detalhes da consulta</p>\n                  <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"font-size: 15px; line-height: 22px;\">\n                    <tr>\n                      <td class=\"email-label\" width=\"136\" valign=\"top\" style=\"padding: 12px 12px 12px 0; border-bottom: 1px solid #e6eeec; color: #5c706b;\">Paciente</td>\n                      <td valign=\"top\" style=\"padding: 12px 0; border-bottom: 1px solid #e6eeec; font-weight: 600; color: #16302b;\">{{ $json.patient_name }}</td>\n                    </tr>\n                    <tr>\n                      <td class=\"email-label\" width=\"136\" valign=\"top\" style=\"padding: 12px 12px 12px 0; border-bottom: 1px solid #e6eeec; color: #5c706b;\">Valor</td>\n                      <td valign=\"top\" style=\"padding: 12px 0; border-bottom: 1px solid #e6eeec; font-weight: 600; color: #16302b;\">{{ $json.price }}</td>\n                    </tr>\n                    <tr>\n                      <td class=\"email-label\" width=\"136\" valign=\"top\" style=\"padding: 12px 12px 12px 0; border-bottom: 1px solid #e6eeec; color: #5c706b;\">Protocolo</td>\n                      <td valign=\"top\" style=\"padding: 12px 0; border-bottom: 1px solid #e6eeec; font-weight: 600; color: #16302b;\">{{ $json.protocol }}</td>\n                    </tr>\n                    <tr>\n                      <td class=\"email-label\" width=\"136\" valign=\"top\" style=\"padding: 12px 12px 12px 0; color: #5c706b;\">Local</td>\n                      <td valign=\"top\" style=\"padding: 12px 0; font-weight: 600; color: #16302b;\">{{ $json.clinic_address }}</td>\n                    </tr>\n                  </table>\n                </td>\n              </tr>\n\n              <!-- Actions -->\n              <tr>\n                <td class=\"email-px\" style=\"padding: 28px 48px 0;\">\n                  <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n                    <tr>\n                      <td class=\"email-stack\" width=\"50%\" valign=\"top\" style=\"padding-right: 6px;\">\n                        <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n                          <tr>\n                            <td align=\"center\" bgcolor=\"#0f766e\" style=\"background-color: #0f766e; border-radius: 10px; mso-padding-alt: 14px 20px;\">\n                              <a href=\"{{ $json.calendar_url }}\" target=\"_blank\" style=\"display: block; padding: 14px 20px; font-size: 15px; line-height: 20px; font-weight: 700; color: #ffffff; text-decoration: none; border-radius: 10px;\">Adicionar à agenda</a>\n                            </td>\n                          </tr>\n                        </table>\n                      </td>\n                      <td class=\"email-stack email-stack-gap\" width=\"50%\" valign=\"top\" style=\"padding-left: 6px;\">\n                        <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n                          <tr>\n                            <td align=\"center\" bgcolor=\"#ffffff\" style=\"background-color: #ffffff; border: 1px solid #0f766e; border-radius: 10px; mso-padding-alt: 13px 20px;\">\n                              <a href=\"{{ $json.maps_url }}\" target=\"_blank\" style=\"display: block; padding: 13px 20px; font-size: 15px; line-height: 20px; font-weight: 700; color: #0f766e; text-decoration: none; border-radius: 10px;\">Como chegar</a>\n                            </td>\n                          </tr>\n                        </table>\n                      </td>\n                    </tr>\n                  </table>\n                </td>\n              </tr>\n\n              <!-- Before the appointment -->\n              <tr>\n                <td class=\"email-px\" style=\"padding: 32px 48px 40px;\">\n                  <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"#f5f8f7\" style=\"background-color: #f5f8f7; border-radius: 12px;\">\n                    <tr>\n                      <td style=\"padding: 24px;\">\n                        <p style=\"margin: 0 0 16px; font-size: 16px; line-height: 24px; font-weight: 700; color: #16302b;\">Antes da consulta</p>\n                        <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"font-size: 15px; line-height: 22px; color: #16302b;\">\n                          <tr>\n                            <td width=\"36\" valign=\"top\" style=\"padding: 0 0 12px;\">\n                              <table role=\"presentation\" width=\"24\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr><td align=\"center\" bgcolor=\"#e1f2ee\" style=\"background-color: #e1f2ee; border-radius: 12px; width: 24px; height: 24px; font-size: 12px; line-height: 24px; font-weight: 700; color: #0b5c56;\">1</td></tr></table>\n                            </td>\n                            <td valign=\"top\" style=\"padding: 1px 0 12px;\">Chegue com <strong>15 minutos de antecedência</strong>.</td>\n                          </tr>\n                          <tr>\n                            <td width=\"36\" valign=\"top\" style=\"padding: 0 0 12px;\">\n                              <table role=\"presentation\" width=\"24\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr><td align=\"center\" bgcolor=\"#e1f2ee\" style=\"background-color: #e1f2ee; border-radius: 12px; width: 24px; height: 24px; font-size: 12px; line-height: 24px; font-weight: 700; color: #0b5c56;\">2</td></tr></table>\n                            </td>\n                            <td valign=\"top\" style=\"padding: 1px 0 12px;\">Traga um <strong>documento com foto</strong>.</td>\n                          </tr>\n                          <tr>\n                            <td width=\"36\" valign=\"top\">\n                              <table role=\"presentation\" width=\"24\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr><td align=\"center\" bgcolor=\"#e1f2ee\" style=\"background-color: #e1f2ee; border-radius: 12px; width: 24px; height: 24px; font-size: 12px; line-height: 24px; font-weight: 700; color: #0b5c56;\">3</td></tr></table>\n                            </td>\n                            <td valign=\"top\" style=\"padding: 1px 0 0;\">Precisa cancelar? É só falar com a nossa <strong>assistente virtual</strong>, por texto ou áudio.</td>\n                          </tr>\n                        </table>\n                      </td>\n                    </tr>\n                  </table>\n                </td>\n              </tr>\n\n            </table>\n          </td>\n        </tr>\n\n        <!-- Footer -->\n        <tr>\n          <td align=\"center\" class=\"email-px\" style=\"padding: 28px 40px 8px; font-size: 12px; line-height: 20px; color: #5c706b;\">\n            <p style=\"margin: 0; font-size: 13px; font-weight: 700; color: #16302b;\">{{ $json.clinic_name }}</p>\n            <p style=\"margin: 4px 0 0;\">{{ $json.clinic_address }}</p>\n            <p style=\"margin: 4px 0 0;\">\n              <a href=\"{{ $json.clinic_phone_href }}\" style=\"color: #0f766e; text-decoration: none;\">{{ $json.clinic_phone }}</a>\n              &nbsp;&middot;&nbsp;\n              <a href=\"mailto:{{ $json.clinic_email }}\" style=\"color: #0f766e; text-decoration: none;\">{{ $json.clinic_email }}</a>\n            </p>\n            <p style=\"margin: 16px 0 0; color: #7d8f8b;\">Mensagem automática enviada pela assistente virtual da clínica.</p>\n          </td>\n        </tr>\n\n      </table>\n      <!--[if mso]></td></tr></table><![endif]-->\n    </td>\n  </tr>\n</table>\n\n</body>\n</html>\n",
         "options": {
           "appendAttribution": false,
-          "senderName": "={{ $json.name }}"
+          "senderName": "={{ $json.clinic_name }}"
         }
       },
       "id": "a877129c-f3e9-509a-ae50-0227e6c05bb0",
-      "name": "Send confirmation email",
+      "name": "Enviar e-mail de confirmação",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
@@ -316,7 +440,12 @@
         }
       },
       "onError": "continueRegularOutput",
-      "webhookId": "a314be34-9bec-56f8-9a12-5bd6214ebaa7"
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500,
+      "webhookId": "a314be34-9bec-56f8-9a12-5bd6214ebaa7",
+      "notes": "Gmail · 3 tentativas · destinatário fixo",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -337,7 +466,7 @@
             {
               "id": "029ab877-669d-5bed-a985-e7d6a8ad67c4",
               "name": "appointment",
-              "value": "={{ $('Create appointment').item.json.body }}",
+              "value": "={{ $('Criar consulta na API').item.json.body }}",
               "type": "object"
             }
           ]
@@ -346,13 +475,15 @@
         "options": {}
       },
       "id": "e672f9d8-b2aa-5291-957d-0c461884d0da",
-      "name": "Booking confirmed",
+      "name": "Agendamento concluído",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
         1740,
         0
-      ]
+      ],
+      "notes": "ok: true · email_sent · appointment",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -382,112 +513,114 @@
         "options": {}
       },
       "id": "ed90e247-8215-5512-9623-8473962a7562",
-      "name": "Booking failed",
+      "name": "Agendamento falhou",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
         1120,
         220
-      ]
+      ],
+      "notes": "ok: false · status_code · error da API",
+      "notesInFlow": true
     }
   ],
   "connections": {
-    "When called by the agent": {
+    "Quando o agente chamar": {
       "main": [
         [
           {
-            "node": "Find patient by email",
+            "node": "Buscar paciente por e-mail",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Find patient by email": {
+    "Buscar paciente por e-mail": {
       "main": [
         [
           {
-            "node": "Patient registered?",
+            "node": "Paciente cadastrado?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Patient registered?": {
+    "Paciente cadastrado?": {
       "main": [
         [
           {
-            "node": "Create appointment",
+            "node": "Criar consulta na API",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Patient not found",
+            "node": "Paciente não encontrado",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Create appointment": {
+    "Criar consulta na API": {
       "main": [
         [
           {
-            "node": "Appointment booked?",
+            "node": "Consulta criada?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Appointment booked?": {
+    "Consulta criada?": {
       "main": [
         [
           {
-            "node": "Get clinic info",
+            "node": "Buscar dados da clínica",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Booking failed",
+            "node": "Agendamento falhou",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get clinic info": {
+    "Buscar dados da clínica": {
       "main": [
         [
           {
-            "node": "Clinic data",
+            "node": "Preparar e-mail",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Clinic data": {
+    "Enviar e-mail de confirmação": {
       "main": [
         [
           {
-            "node": "Send confirmation email",
+            "node": "Agendamento concluído",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send confirmation email": {
+    "Preparar e-mail": {
       "main": [
         [
           {
-            "node": "Booking confirmed",
+            "node": "Enviar e-mail de confirmação",
             "type": "main",
             "index": 0
           }

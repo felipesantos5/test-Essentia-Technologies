@@ -1,0 +1,76 @@
+              <!-- Intro -->
+              <tr>
+                <td class="email-px" style="padding: 40px 48px 0;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td bgcolor="#fdecea" style="background-color: #fdecea; border-radius: 999px; padding: 6px 14px; font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #b42318;">&#10005;&nbsp; Consulta cancelada</td>
+                    </tr>
+                  </table>
+                  <h1 class="email-title" style="margin: 20px 0 0; font-size: 28px; line-height: 36px; font-weight: 700; color: #16302b;">Cancelamento confirmado</h1>
+                  <p style="margin: 12px 0 0; font-size: 16px; line-height: 26px; color: #5c706b;">Olá, {{ $json.patient_first_name }}. A sua consulta de <strong style="color: #16302b;">{{ $json.specialty }}</strong> foi cancelada e o horário já está livre para outros pacientes.</p>
+                </td>
+              </tr>
+
+              <!-- When -->
+              <tr>
+                <td class="email-px" style="padding: 28px 48px 0;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f8f7" style="background-color: #f5f8f7; border: 1px solid #d8e3e0; border-radius: 12px;">
+                    <tr>
+                      <td width="64" valign="top" style="padding: 20px 0 20px 20px;">
+                        <table role="presentation" width="64" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color: #ffffff; border: 1px solid #d8e3e0; border-radius: 10px;">
+                          <tr>
+                            <td align="center" bgcolor="#8a9b97" style="background-color: #8a9b97; border-radius: 9px 9px 0 0; padding: 4px 0; font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: 1px; color: #ffffff;">{{ $json.month_short }}</td>
+                          </tr>
+                          <tr>
+                            <td align="center" style="padding: 6px 0 0; font-size: 26px; line-height: 30px; font-weight: 700; color: #8a9b97;">{{ $json.day }}</td>
+                          </tr>
+                          <tr>
+                            <td align="center" style="padding: 0 0 8px; font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.5px; color: #8a9b97;">{{ $json.weekday_short }}</td>
+                          </tr>
+                        </table>
+                      </td>
+                      <td valign="middle" style="padding: 20px 20px 20px 16px;">
+                        <p style="margin: 0; font-size: 17px; line-height: 24px; font-weight: 700; color: #5c706b; text-decoration: line-through;">{{ $json.date_long }}</p>
+                        <p style="margin: 4px 0 0; font-size: 16px; line-height: 24px; font-weight: 600; color: #8a9b97; text-decoration: line-through;">{{ $json.time_range }}</p>
+                        <p style="margin: 4px 0 0; font-size: 14px; line-height: 22px; color: #5c706b;">{{ $json.doctor_name }} &middot; {{ $json.specialty }}</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Details -->
+              <tr>
+                <td class="email-px" style="padding: 32px 48px 0;">
+                  <p style="margin: 0 0 4px; font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #5c706b;">Detalhes do cancelamento</p>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 15px; line-height: 22px;">
+                    <tr>
+                      <td class="email-label" width="136" valign="top" style="padding: 12px 12px 12px 0; border-bottom: 1px solid #e6eeec; color: #5c706b;">Paciente</td>
+                      <td valign="top" style="padding: 12px 0; border-bottom: 1px solid #e6eeec; font-weight: 600; color: #16302b;">{{ $json.patient_name }}</td>
+                    </tr>
+                    <tr>
+                      <td class="email-label" width="136" valign="top" style="padding: 12px 12px 12px 0; border-bottom: 1px solid #e6eeec; color: #5c706b;">Protocolo</td>
+                      <td valign="top" style="padding: 12px 0; border-bottom: 1px solid #e6eeec; font-weight: 600; color: #16302b;">{{ $json.protocol }}</td>
+                    </tr>
+                    <tr>
+                      <td class="email-label" width="136" valign="top" style="padding: 12px 12px 12px 0; color: #5c706b;">Cancelada em</td>
+                      <td valign="top" style="padding: 12px 0; font-weight: 600; color: #16302b;">{{ $json.cancelled_at }}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Reschedule -->
+              <tr>
+                <td class="email-px" style="padding: 32px 48px 40px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f8f7" style="background-color: #f5f8f7; border-left: 4px solid #0f766e; border-radius: 12px;">
+                    <tr>
+                      <td style="padding: 24px;">
+                        <p style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 700; color: #16302b;">Quer remarcar?</p>
+                        <p style="margin: 8px 0 0; font-size: 15px; line-height: 24px; color: #5c706b;">É só falar com a nossa <strong style="color: #16302b;">assistente virtual</strong>, por texto ou áudio. Ela mostra os horários livres e agenda a nova consulta para você.</p>
+                        <p style="margin: 12px 0 0; font-size: 15px; line-height: 24px; color: #5c706b;">Prefere ligar? <a href="{{ $json.clinic_phone_href }}" style="color: #0f766e; font-weight: 700; text-decoration: none;">{{ $json.clinic_phone }}</a></p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>

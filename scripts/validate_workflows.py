@@ -54,6 +54,12 @@ SUB_WORKFLOW_CALLERS = {
     "n8n-nodes-base.executeWorkflow",
 }
 
+# Calls to external services (Gmail, OpenAI transcription and TTS) must retry before failing.
+RETRY_REQUIRED_NODES = {"n8n-nodes-base.gmail", "@n8n/n8n-nodes-langchain.openAi"}
+
+# `$('Node name')` inside expressions; a renamed node would only break at run time.
+NODE_REFERENCE = re.compile(r"\$\('([^']+)'\)")
+
 
 def check_workflow(path: Path, workflow: dict, known_ids: set[str]) -> list[str]:
     errors: list[str] = []
@@ -83,6 +89,13 @@ def check_workflow(path: Path, workflow: dict, known_ids: set[str]) -> list[str]
             target = node["parameters"].get("workflowId", {}).get("value")
             if target not in known_ids:
                 errors.append(f"{label}: calls unknown workflow id {target!r}")
+
+        if node["type"] in RETRY_REQUIRED_NODES and not node.get("retryOnFail"):
+            errors.append(f"{label}: external call must set retryOnFail")
+
+        parameters = json.dumps(node.get("parameters", {}), ensure_ascii=False)
+        for reference in sorted(set(NODE_REFERENCE.findall(parameters)) - set(names)):
+            errors.append(f"{label}: expression references unknown node '{reference}'")
 
     connected: set[str] = set()
     for source, outputs in workflow.get("connections", {}).items():

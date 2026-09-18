@@ -1,55 +1,55 @@
 {
   "id": "clinicChatMain01",
-  "name": "Clinic Chat – Main",
+  "name": "Clínica – Chat principal",
   "active": false,
   "isArchived": false,
   "nodes": [
     {
       "parameters": {
-        "content": "## 1. Entrada multimodal\n`POST /webhook/clinic-chat` (multipart ou JSON)\n- `session_id`: identifica a conversa (memória)\n- `message`: texto **ou** `audio`: arquivo de voz\n\nO **Switch** decide pelo conteúdo recebido: áudio é transcrito (OpenAI) antes de ir ao agente.",
-        "height": 700,
+        "content": "## 1. Entrada multimodal (texto ou áudio)\n`POST /webhook/clinic-chat` — multipart/form-data ou JSON.\n- `session_id`: identifica a conversa (chave da memória do agente)\n- `message`: texto **ou** `audio`: arquivo de voz (webm, m4a, ogg, wav, mp3)\n\n**Rotear por tipo de mensagem** decide pelo conteúdo recebido:\n- veio arquivo `audio` → **Transcrever áudio** (OpenAI Whisper, pt-BR) e segue como texto\n- veio `message` → segue direto para o agente\n- nenhum dos dois → `400 INVALID_REQUEST`\n\nOs dois caminhos são normalizados para `{ session_id, message, input_type }`.\nA transcrição tenta **3 vezes** (1,5 s entre tentativas); se ainda falhar, responde `422 TRANSCRIPTION_FAILED` pedindo para gravar de novo.",
+        "height": 1220,
         "width": 860,
         "color": 7
       },
       "id": "e8a0311a-4f51-598c-aab3-04745b587a2c",
-      "name": "Note: input",
+      "name": "Nota: entrada",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         -60,
-        -120
+        -640
       ]
     },
     {
       "parameters": {
-        "content": "## 2. Agente de IA\nConversa com memória por sessão e usa ferramentas que chamam a **API da clínica** (agenda, pacientes, valores). Agendar e cancelar são sub-workflows que também enviam o e-mail pelo **Gmail**.",
-        "height": 1060,
+        "content": "## 2. Agente de IA com function calling\n**Assistente da clínica** (AI Agent + `gpt-5-mini`) conversa em português com **memória por `session_id`** (últimas 20 mensagens). O prompt recebe a data e hora atuais (fuso de São Paulo) e o canal da mensagem: em **áudio** responde curto e sem markdown, porque o texto vira voz.\n\nO modelo escolhe sozinho quais **ferramentas** chamar (OpenAI function calling). Os nomes abaixo são os identificadores que o modelo usa; todas chamam a API com a credencial *Clinic API key* (header `X-API-Key`):\n- `get_clinic_info` · dados da clínica, saudação e encerramento oficiais\n- `list_doctors` · médicos, especialidades, valores e dias de atendimento\n- `check_availability` · horários livres reais (o agente nunca inventa horário)\n- `get_payment_info` · valores por especialidade e formas de pagamento\n- `find_patient_by_email` / `register_patient` · localizar ou cadastrar paciente\n- `list_patient_appointments` · consultas futuras do paciente\n- `book_appointment` / `cancel_appointment` · sub-workflows que gravam na API **e enviam o e-mail pelo Gmail**\n\nRegras do prompt: **confirmação explícita** do paciente antes de agendar ou cancelar; nunca mostra IDs, JSON ou nomes de ferramenta; sem orientação médica.\nSe o modelo falhar, responde `502 AGENT_FAILED` com mensagem amigável.",
+        "height": 1580,
         "width": 1600,
         "color": 6
       },
       "id": "5806fad3-d6b7-584a-bac2-ac9a1f3dd676",
-      "name": "Note: agent",
+      "name": "Nota: agente",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         840,
-        -120
+        -640
       ]
     },
     {
       "parameters": {
-        "content": "## 3. Resposta no mesmo formato\nPergunta em **áudio** → resposta em áudio (OpenAI TTS, base64 mp3) + texto.\nPergunta em **texto** → resposta em texto.",
-        "height": 700,
+        "content": "## 3. Resposta no mesmo canal da pergunta\n**Responder em áudio?** verifica se a mensagem original trouxe arquivo de áudio.\n- **Áudio** → **Gerar voz** (OpenAI TTS `tts-1`, voz *nova*, mp3) → **Converter áudio em base64** → `{ type: \"audio\", transcript, reply_text, audio: { mime_type, base64 } }`\n- **Texto** → `{ type: \"text\", reply_text }`\n\nO TTS tenta **3 vezes** (1,5 s entre tentativas). Se ainda falhar, o paciente recebe a mesma resposta em **texto** (`audio_error: \"TTS_FAILED\"`): nunca fica sem resposta.",
+        "height": 1220,
         "width": 900,
         "color": 4
       },
       "id": "7a8238a6-1ad4-5e83-ae33-9377805dd047",
-      "name": "Note: output",
+      "name": "Nota: resposta",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         2480,
-        -120
+        -640
       ]
     },
     {
@@ -62,14 +62,16 @@
         }
       },
       "id": "b141ea97-ce9c-5964-aa3c-f3a672e8fcfc",
-      "name": "Receive chat message",
+      "name": "Receber mensagem do chat",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
         0,
         260
       ],
-      "webhookId": "5f2d8c1a-3b7e-4c9d-8a6f-1e2b3c4d5e6f"
+      "webhookId": "5f2d8c1a-3b7e-4c9d-8a6f-1e2b3c4d5e6f",
+      "notes": "Entrada do web chat, Postman e curl (multipart ou JSON)",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -111,7 +113,7 @@
                 "conditions": [
                   {
                     "id": "70cbc726-8dd1-5697-847a-0def8e18cffe",
-                    "leftValue": "={{ ($json.body.message ?? '').trim() }}",
+                    "leftValue": "={{ String($json.body.message ?? '').trim() }}",
                     "operator": {
                       "type": "string",
                       "operation": "notEmpty",
@@ -134,13 +136,15 @@
         }
       },
       "id": "7a964e36-cbd8-5ed5-bc05-ce9ad321ec3f",
-      "name": "Route by message type",
+      "name": "Rotear por tipo de mensagem",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
         220,
         260
-      ]
+      ],
+      "notes": "áudio → transcreve · texto → segue · nada → 400",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -152,7 +156,7 @@
         }
       },
       "id": "9021a290-8ffc-5a58-a6cf-eab9bdcd62f7",
-      "name": "Transcribe audio",
+      "name": "Transcrever áudio (Whisper)",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.3,
       "position": [
@@ -165,7 +169,12 @@
           "name": "OpenAI (Clinic)"
         }
       },
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500,
+      "notes": "OpenAI Whisper em pt-BR · 3 tentativas · falhou → 422",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -174,7 +183,7 @@
             {
               "id": "5da37a15-b0fd-57df-a9e0-85480932ceee",
               "name": "session_id",
-              "value": "={{ $('Receive chat message').first().json.body.session_id || $execution.id }}",
+              "value": "={{ $('Receber mensagem do chat').first().json.body.session_id || $execution.id }}",
               "type": "string"
             },
             {
@@ -195,13 +204,15 @@
         "options": {}
       },
       "id": "3be21a5f-4fd2-5481-b2be-beb3ffed4f1d",
-      "name": "Normalize audio input",
+      "name": "Normalizar entrada de áudio",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
         660,
         100
-      ]
+      ],
+      "notes": "{ session_id, message: transcrição, input_type: audio }",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -216,7 +227,7 @@
             {
               "id": "42b3f017-49dd-5494-9c4d-9b2c925a8231",
               "name": "message",
-              "value": "={{ $json.body.message.trim() }}",
+              "value": "={{ String($json.body.message).trim() }}",
               "type": "string"
             },
             {
@@ -231,13 +242,15 @@
         "options": {}
       },
       "id": "2e1cfcf3-baff-5132-a4ca-00d292d767bc",
-      "name": "Normalize text input",
+      "name": "Normalizar entrada de texto",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
         660,
         300
-      ]
+      ],
+      "notes": "{ session_id, message, input_type: text }",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -248,50 +261,56 @@
         }
       },
       "id": "603d374b-5499-5500-b3dc-a3045b59adee",
-      "name": "Respond invalid request",
+      "name": "Responder 400: requisição inválida",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
         440,
         440
-      ]
+      ],
+      "notes": "Sem message nem audio no request",
+      "notesInFlow": true
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { type: 'text', session_id: $('Receive chat message').first().json.body.session_id, reply_text: 'Não consegui entender o áudio. Pode gravar de novo ou escrever sua mensagem?', audio: null, error: { code: 'TRANSCRIPTION_FAILED' } } }}",
+        "responseBody": "={{ { type: 'text', session_id: $('Receber mensagem do chat').first().json.body.session_id || $execution.id, reply_text: 'Não consegui entender o áudio. Pode gravar de novo ou escrever sua mensagem?', audio: null, error: { code: 'TRANSCRIPTION_FAILED' } } }}",
         "options": {
           "responseCode": 422
         }
       },
       "id": "a9794e4d-4652-500d-8753-723139397c9b",
-      "name": "Respond transcription failed",
+      "name": "Responder 422: falha na transcrição",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
         660,
         -60
-      ]
+      ],
+      "notes": "Áudio não pôde ser transcrito após 3 tentativas",
+      "notesInFlow": true
     },
     {
       "parameters": {
         "promptType": "define",
         "text": "={{ $json.message }}",
         "options": {
-          "systemMessage": "=Você é a assistente virtual da Clínica Essentia Saúde. Atenda pacientes em português do Brasil com cordialidade, clareza e objetividade.\n\n## Contexto\n- Agora: {{ $now.setZone('America/Sao_Paulo').setLocale('pt-BR').toFormat(\"cccc, dd/LL/yyyy HH:mm\") }} (fuso America/Sao_Paulo).\n- Canal desta mensagem: {{ $json.input_type === 'audio' ? 'ÁUDIO. Sua resposta será convertida em voz. Responda em no máximo 3 frases curtas (até 350 caracteres), em um único parágrafo, sem listas, tópicos, quebras de linha, markdown, emojis ou links. Fale horários como \"9h30\" e valores como \"380 reais\". Com muitos itens, cite só os principais e ofereça detalhar.' : 'TEXTO. Seja objetiva; use listas curtas só quando houver vários itens.' }}\n\n## O que você faz\n1. Saudação e encerramento (textos oficiais em get_clinic_info):\n   - Se a primeira mensagem da conversa for apenas um cumprimento, responda com a greeting_message.\n   - Se a primeira mensagem já trouxer um pedido, abra com um cumprimento curto e natural (ex.: \"Olá! Aqui é a assistente da Clínica Essentia Saúde.\") e atenda o pedido direto, sem repetir a lista de serviços nem perguntar \"como posso ajudar\".\n   - Não cumprimente de novo nas mensagens seguintes.\n   - Use a closing_message somente quando o paciente se despedir ou disser que não precisa de mais nada. Nunca a acrescente ao final de outras respostas.\n2. Horários disponíveis: descubra a especialidade ou o médico com list_doctors e consulte check_availability. Nunca invente horários. Ofereça no máximo 5 opções por vez, com dia da semana, data e hora.\n3. Valores e formas de pagamento: use get_payment_info e responda somente com os dados retornados.\n4. Agendamento (siga esta ordem, sem repetir perguntas já respondidas):\n   a. Defina especialidade ou médico e o horário. Se o paciente já disse o horário, confirme com check_availability que ele está livre e não ofereça outras opções; se não estiver livre ou ele não disse, ofereça até 5 opções.\n   b. Peça o e-mail e chame find_patient_by_email. Sem cadastro, peça nome completo e telefone e chame register_patient.\n   c. Depois do cadastro, faça um único resumo (paciente, especialidade, médico, data, horário e valor) e pergunte se pode confirmar. Informar e-mail, nome ou telefone não é confirmação. Respostas como \"sim\", \"pode\", \"ok\" ou \"confirmo\" a esse resumo valem como confirmação.\n   d. Só depois dessa confirmação chame book_appointment, com starts_at exatamente igual ao slot retornado por check_availability.\n   e. Informe o resultado. Se email_sent for true, avise que a confirmação foi enviada por e-mail. Se for false, diga que a consulta está confirmada, mas o e-mail não pôde ser enviado agora, e que os detalhes estão nesta conversa.\n5. Cancelamento:\n   a. Peça o e-mail, chame find_patient_by_email e depois list_patient_appointments.\n   b. Mostre as consultas futuras (data, horário, médico) e pergunte qual deve ser cancelada.\n   c. Peça confirmação explícita e então chame cancel_appointment. Informe o resultado e se o e-mail foi enviado, com a mesma regra do agendamento quando email_sent for false.\n\n## Regras\n- Nunca mostre IDs internos, nomes de ferramentas, JSON ou mensagens técnicas ao paciente.\n- Você só consegue: informar dados da clínica, médicos, horários, valores e formas de pagamento; buscar e cadastrar pacientes; listar, agendar e cancelar consultas. Não ofereça nem prometa nada além disso (por exemplo: reenviar e-mail, alterar cadastro, remarcar sem cancelar, acionar a equipe). Para outros pedidos, informe o telefone e o e-mail da clínica.\n- Se uma ferramenta retornar erro, explique em linguagem simples e ofereça uma alternativa (por exemplo, outro horário quando o horário não estiver mais disponível).\n- Não dê orientação médica nem diagnóstico. Em caso de urgência, oriente a procurar um pronto-socorro ou ligar 192.\n- Para assuntos fora do atendimento da clínica, recuse com gentileza e retome o atendimento.",
+          "systemMessage": "=Você é a assistente virtual da Clínica Essentia Saúde. Atenda pacientes em português do Brasil com cordialidade, clareza e objetividade.\n\n## Contexto\n- Agora: {{ $now.setZone('America/Sao_Paulo').setLocale('pt-BR').toFormat(\"cccc, dd/LL/yyyy HH:mm\") }} (fuso America/Sao_Paulo).\n- Canal desta mensagem: {{ $json.input_type === 'audio' ? 'ÁUDIO. Sua resposta será convertida em voz. Responda em no máximo 3 frases curtas (até 350 caracteres), em um único parágrafo, sem listas, tópicos, quebras de linha, markdown, emojis ou links. Fale horários como \"9h30\" e valores como \"380 reais\". Com muitos itens, cite só os principais e ofereça detalhar.' : 'TEXTO. Seja objetiva; use listas curtas só quando houver vários itens.' }}\n\n## O que você faz\n1. Saudação e encerramento (textos oficiais em get_clinic_info):\n   - Se a primeira mensagem da conversa for apenas um cumprimento, responda com a greeting_message.\n   - Se a primeira mensagem já trouxer um pedido, abra com um cumprimento curto e natural (ex.: \"Olá! Aqui é a assistente da Clínica Essentia Saúde.\") e atenda o pedido direto, sem repetir a lista de serviços nem perguntar \"como posso ajudar\".\n   - Não cumprimente de novo nas mensagens seguintes.\n   - Use a closing_message somente quando o paciente se despedir ou disser que não precisa de mais nada. Nunca a acrescente ao final de outras respostas.\n2. Horários disponíveis: descubra a especialidade ou o médico com list_doctors e consulte check_availability. Nunca invente horários. Ofereça no máximo 5 opções por vez, com dia da semana, data e hora. Interprete \"hoje\", \"amanhã\" e \"sexta que vem\" a partir de Agora e sempre cite a data completa (dia da semana e dd/mm) ao oferecer horários.\n3. Valores e formas de pagamento: use get_payment_info e responda somente com os dados retornados.\n4. Agendamento (siga esta ordem, sem repetir perguntas já respondidas):\n   a. Defina especialidade ou médico e o horário. Se o paciente já disse o horário, confirme com check_availability que ele está livre e não ofereça outras opções; se não estiver livre ou ele não disse, ofereça até 5 opções.\n   b. Peça o e-mail e chame find_patient_by_email. Por texto, use o e-mail informado sem pedir confirmação; só quando ele vier por áudio, repita-o soletrado e confirme antes de buscar. Sem cadastro, peça nome completo e telefone e chame register_patient.\n   c. Depois do cadastro, faça um único resumo (paciente, especialidade, médico, data, horário e o valor informado por list_doctors ou check_availability) e pergunte se pode confirmar. Informar e-mail, nome ou telefone não é confirmação. Respostas como \"sim\", \"pode\", \"ok\" ou \"confirmo\" a esse resumo valem como confirmação.\n   d. Só depois dessa confirmação chame book_appointment, com starts_at exatamente igual ao slot retornado por check_availability, incluindo o fuso (-03:00).\n   e. Informe o resultado. Se email_sent for true, avise que a confirmação foi enviada por e-mail. Se for false, diga que a consulta está confirmada, mas o e-mail não pôde ser enviado agora, e que os detalhes estão nesta conversa.\n5. Cancelamento:\n   a. Peça o e-mail, chame find_patient_by_email e depois list_patient_appointments.\n   b. Mostre as consultas futuras (data, horário, médico) e pergunte qual deve ser cancelada.\n   c. Peça confirmação explícita e então chame cancel_appointment. Informe o resultado e se o e-mail foi enviado, com a mesma regra do agendamento quando email_sent for false.\n\n## Regras\n- Nunca mostre IDs internos, nomes de ferramentas, JSON ou mensagens técnicas ao paciente.\n- Você só consegue: informar dados da clínica, médicos, horários, valores e formas de pagamento; buscar e cadastrar pacientes; listar, agendar e cancelar consultas. Não ofereça nem prometa nada além disso (por exemplo: reenviar e-mail, alterar cadastro, remarcar sem cancelar, acionar a equipe). Para outros pedidos, informe o telefone e o e-mail da clínica.\n- Se uma ferramenta retornar erro, explique em linguagem simples e ofereça uma alternativa (por exemplo, outro horário quando o horário não estiver mais disponível).\n- Não dê orientação médica nem diagnóstico. Em caso de urgência, oriente a procurar um pronto-socorro ou ligar 192.\n- Para assuntos fora do atendimento da clínica, recuse com gentileza e retome o atendimento.",
           "maxIterations": 12,
           "enableStreaming": false
         }
       },
       "id": "7d0d15a9-e758-514a-9f4d-a3745bc0357b",
-      "name": "Clinic assistant",
+      "name": "Assistente da clínica",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
         1300,
         200
       ],
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "notes": "gpt-5-mini · memória por sessão · 9 ferramentas (function calling)",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -306,7 +325,7 @@
         }
       },
       "id": "78765abf-a868-5a20-9436-105464688edf",
-      "name": "OpenAI chat model",
+      "name": "Modelo OpenAI (gpt-5-mini)",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
@@ -318,7 +337,9 @@
           "id": "clinicOpenAiCred",
           "name": "OpenAI (Clinic)"
         }
-      }
+      },
+      "notes": "LLM do agente",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -327,13 +348,15 @@
         "contextWindowLength": 20
       },
       "id": "b5f67b3c-7ccd-52d9-833d-05cb42537fc1",
-      "name": "Conversation memory",
+      "name": "Memória da conversa",
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
       "position": [
         1020,
         520
-      ]
+      ],
+      "notes": "Últimas 20 mensagens por session_id",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -363,7 +386,9 @@
           "id": "clinicApiKeyCred",
           "name": "Clinic API key"
         }
-      }
+      },
+      "notes": "GET /clinic · dados, saudação e encerramento",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -402,11 +427,13 @@
           "id": "clinicApiKeyCred",
           "name": "Clinic API key"
         }
-      }
+      },
+      "notes": "GET /doctors · médicos e agendas por especialidade",
+      "notesInFlow": true
     },
     {
       "parameters": {
-        "toolDescription": "Consulta horários livres por médico. Filtre por specialty_id ou doctor_id e pelo período date_from/date_to (YYYY-MM-DD, até 14 dias; padrão: próximos 7 dias). Cada item de slots é o starts_at exato para agendar.",
+        "toolDescription": "Consulta horários livres por médico. Filtre por specialty_id ou doctor_id e pelo período date_from/date_to (YYYY-MM-DD, até 14 dias; padrão: próximos 7 dias). A resposta traz, por médico, doctor_id, specialty (com consultation_price.formatted) e days[] com weekday_name, date e slots[]; cada item de slots é o starts_at exato para agendar.",
         "method": "GET",
         "url": "http://api:8000/api/v1/availability",
         "authentication": "genericCredentialType",
@@ -453,7 +480,9 @@
           "id": "clinicApiKeyCred",
           "name": "Clinic API key"
         }
-      }
+      },
+      "notes": "GET /availability · horários livres reais",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -483,7 +512,9 @@
           "id": "clinicApiKeyCred",
           "name": "Clinic API key"
         }
-      }
+      },
+      "notes": "GET /payment-info · valores e formas de pagamento",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -522,7 +553,9 @@
           "id": "clinicApiKeyCred",
           "name": "Clinic API key"
         }
-      }
+      },
+      "notes": "GET /patients?email= · localizar paciente",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -569,7 +602,9 @@
           "id": "clinicApiKeyCred",
           "name": "Clinic API key"
         }
-      }
+      },
+      "notes": "POST /patients · cadastrar paciente novo",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -612,7 +647,9 @@
           "id": "clinicApiKeyCred",
           "name": "Clinic API key"
         }
-      }
+      },
+      "notes": "GET /patients/{id}/appointments · consultas futuras",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -635,7 +672,7 @@
             {
               "id": "patient_email",
               "displayName": "patient_email",
-              "required": false,
+              "required": true,
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
@@ -645,7 +682,7 @@
             {
               "id": "doctor_id",
               "displayName": "doctor_id",
-              "required": false,
+              "required": true,
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
@@ -655,7 +692,7 @@
             {
               "id": "starts_at",
               "displayName": "starts_at",
-              "required": false,
+              "required": true,
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
@@ -684,7 +721,9 @@
       "position": [
         1520,
         740
-      ]
+      ],
+      "notes": "Sub-workflow: agenda na API e envia o e-mail",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -706,7 +745,7 @@
             {
               "id": "appointment_id",
               "displayName": "appointment_id",
-              "required": false,
+              "required": true,
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
@@ -716,7 +755,7 @@
             {
               "id": "patient_email",
               "displayName": "patient_email",
-              "required": false,
+              "required": true,
               "defaultMatch": false,
               "display": true,
               "canBeUsedToMatch": true,
@@ -745,24 +784,28 @@
       "position": [
         1880,
         740
-      ]
+      ],
+      "notes": "Sub-workflow: cancela na API e envia o e-mail",
+      "notesInFlow": true
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { type: 'text', session_id: $('Receive chat message').first().json.body.session_id, reply_text: 'Desculpe, tive uma instabilidade para processar sua mensagem. Pode tentar novamente em instantes?', audio: null, error: { code: 'AGENT_FAILED' } } }}",
+        "responseBody": "={{ { type: 'text', session_id: $('Receber mensagem do chat').first().json.body.session_id || $execution.id, reply_text: 'Desculpe, tive uma instabilidade para processar sua mensagem. Pode tentar novamente em instantes?', audio: null, error: { code: 'AGENT_FAILED' } } }}",
         "options": {
           "responseCode": 502
         }
       },
       "id": "52e386c2-678c-56e3-a82f-cab845881971",
-      "name": "Respond agent failure",
+      "name": "Responder 502: falha do agente",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
         1700,
         300
-      ]
+      ],
+      "notes": "Falha do LLM · resposta amigável",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -776,7 +819,7 @@
           "conditions": [
             {
               "id": "320eddcb-7c0b-5f52-9712-98d5154b2487",
-              "leftValue": "={{ $('Receive chat message').first().binary?.audio !== undefined }}",
+              "leftValue": "={{ $('Receber mensagem do chat').first().binary?.audio !== undefined }}",
               "operator": {
                 "type": "boolean",
                 "operation": "true",
@@ -791,13 +834,15 @@
         "options": {}
       },
       "id": "6e1cf263-eb6f-5047-a5b4-6804d6fc8ed2",
-      "name": "Reply with audio?",
+      "name": "Responder em áudio?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
         2540,
         200
-      ]
+      ],
+      "notes": "A pergunta veio em áudio?",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -812,7 +857,7 @@
         }
       },
       "id": "49ad34b6-7e16-5057-a398-aea5fb952f64",
-      "name": "Generate speech",
+      "name": "Gerar voz (OpenAI TTS)",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.3,
       "position": [
@@ -825,7 +870,12 @@
           "name": "OpenAI (Clinic)"
         }
       },
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500,
+      "notes": "tts-1 · 3 tentativas · falhou → responde em texto",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -835,138 +885,144 @@
         "options": {}
       },
       "id": "aa55c31e-bb4e-52de-a0fa-fa18f092835a",
-      "name": "Encode audio as base64",
+      "name": "Converter áudio em base64",
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1.1,
       "position": [
         2980,
         80
-      ]
+      ],
+      "notes": "mp3 → base64 para o JSON de resposta",
+      "notesInFlow": true
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ {\n  type: 'audio',\n  session_id: $('Receive chat message').first().json.body.session_id,\n  transcript: $('Transcribe audio').first().json.text,\n  reply_text: $('Clinic assistant').first().json.output,\n  audio: { mime_type: 'audio/mpeg', base64: $json.audio_base64 }\n} }}",
+        "responseBody": "={{ {\n  type: 'audio',\n  session_id: $('Receber mensagem do chat').first().json.body.session_id || $execution.id,\n  transcript: $('Transcrever áudio (Whisper)').first().json.text,\n  reply_text: $('Assistente da clínica').first().json.output,\n  audio: { mime_type: 'audio/mpeg', base64: $json.audio_base64 }\n} }}",
         "options": {}
       },
       "id": "292373cd-fde4-5c13-ab34-db40c132f958",
-      "name": "Respond with audio",
+      "name": "Responder com áudio",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
         3200,
         80
-      ]
+      ],
+      "notes": "type: audio · transcript · reply_text · mp3",
+      "notesInFlow": true
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ {\n  type: 'text',\n  session_id: $('Receive chat message').first().json.body.session_id,\n  transcript: $('Receive chat message').first().binary?.audio ? $('Transcribe audio').first().json.text : null,\n  reply_text: $('Clinic assistant').first().json.output,\n  audio: null\n} }}",
+        "responseBody": "={{ {\n  type: 'text',\n  session_id: $('Receber mensagem do chat').first().json.body.session_id || $execution.id,\n  transcript: $('Receber mensagem do chat').first().binary?.audio ? $('Transcrever áudio (Whisper)').first().json.text : null,\n  reply_text: $('Assistente da clínica').first().json.output,\n  audio: null,\n  audio_error: $json.error ? 'TTS_FAILED' : null\n} }}",
         "options": {}
       },
       "id": "304e4471-46c1-53a4-8218-86b84a60aaf5",
-      "name": "Respond with text",
+      "name": "Responder com texto",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
         2980,
         320
-      ]
+      ],
+      "notes": "type: text · reply_text",
+      "notesInFlow": true
     }
   ],
   "connections": {
-    "Receive chat message": {
+    "Receber mensagem do chat": {
       "main": [
         [
           {
-            "node": "Route by message type",
+            "node": "Rotear por tipo de mensagem",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Route by message type": {
+    "Rotear por tipo de mensagem": {
       "main": [
         [
           {
-            "node": "Transcribe audio",
+            "node": "Transcrever áudio (Whisper)",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Normalize text input",
+            "node": "Normalizar entrada de texto",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Respond invalid request",
+            "node": "Responder 400: requisição inválida",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Transcribe audio": {
+    "Transcrever áudio (Whisper)": {
       "main": [
         [
           {
-            "node": "Normalize audio input",
+            "node": "Normalizar entrada de áudio",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Respond transcription failed",
+            "node": "Responder 422: falha na transcrição",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize audio input": {
+    "Normalizar entrada de áudio": {
       "main": [
         [
           {
-            "node": "Clinic assistant",
+            "node": "Assistente da clínica",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize text input": {
+    "Normalizar entrada de texto": {
       "main": [
         [
           {
-            "node": "Clinic assistant",
+            "node": "Assistente da clínica",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "OpenAI chat model": {
+    "Modelo OpenAI (gpt-5-mini)": {
       "ai_languageModel": [
         [
           {
-            "node": "Clinic assistant",
+            "node": "Assistente da clínica",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "Conversation memory": {
+    "Memória da conversa": {
       "ai_memory": [
         [
           {
-            "node": "Clinic assistant",
+            "node": "Assistente da clínica",
             "type": "ai_memory",
             "index": 0
           }
@@ -977,7 +1033,7 @@
       "ai_tool": [
         [
           {
-            "node": "Clinic assistant",
+            "node": "Assistente da clínica",
             "type": "ai_tool",
             "index": 0
           }
@@ -988,7 +1044,7 @@
       "ai_tool": [
         [
           {
-            "node": "Clinic assistant",
+            "node": "Assistente da clínica",
             "type": "ai_tool",
             "index": 0
           }
@@ -999,7 +1055,7 @@
       "ai_tool": [
         [
           {
-            "node": "Clinic assistant",
+            "node": "Assistente da clínica",
             "type": "ai_tool",
             "index": 0
           }
@@ -1010,7 +1066,7 @@
       "ai_tool": [
         [
           {
-            "node": "Clinic assistant",
+            "node": "Assistente da clínica",
             "type": "ai_tool",
             "index": 0
           }
@@ -1021,7 +1077,7 @@
       "ai_tool": [
         [
           {
-            "node": "Clinic assistant",
+            "node": "Assistente da clínica",
             "type": "ai_tool",
             "index": 0
           }
@@ -1032,7 +1088,7 @@
       "ai_tool": [
         [
           {
-            "node": "Clinic assistant",
+            "node": "Assistente da clínica",
             "type": "ai_tool",
             "index": 0
           }
@@ -1043,7 +1099,7 @@
       "ai_tool": [
         [
           {
-            "node": "Clinic assistant",
+            "node": "Assistente da clínica",
             "type": "ai_tool",
             "index": 0
           }
@@ -1054,7 +1110,7 @@
       "ai_tool": [
         [
           {
-            "node": "Clinic assistant",
+            "node": "Assistente da clínica",
             "type": "ai_tool",
             "index": 0
           }
@@ -1065,72 +1121,72 @@
       "ai_tool": [
         [
           {
-            "node": "Clinic assistant",
+            "node": "Assistente da clínica",
             "type": "ai_tool",
             "index": 0
           }
         ]
       ]
     },
-    "Clinic assistant": {
+    "Assistente da clínica": {
       "main": [
         [
           {
-            "node": "Reply with audio?",
+            "node": "Responder em áudio?",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Respond agent failure",
+            "node": "Responder 502: falha do agente",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Reply with audio?": {
+    "Responder em áudio?": {
       "main": [
         [
           {
-            "node": "Generate speech",
+            "node": "Gerar voz (OpenAI TTS)",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Respond with text",
+            "node": "Responder com texto",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Generate speech": {
+    "Gerar voz (OpenAI TTS)": {
       "main": [
         [
           {
-            "node": "Encode audio as base64",
+            "node": "Converter áudio em base64",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Respond with text",
+            "node": "Responder com texto",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Encode audio as base64": {
+    "Converter áudio em base64": {
       "main": [
         [
           {
-            "node": "Respond with audio",
+            "node": "Responder com áudio",
             "type": "main",
             "index": 0
           }
