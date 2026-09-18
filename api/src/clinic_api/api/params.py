@@ -10,6 +10,8 @@ from typing import Annotated, Any
 from fastapi import Query
 from pydantic import BeforeValidator
 
+from clinic_api.models import AppointmentStatus
+
 
 def blank_as_none(value: Any) -> Any:
     if isinstance(value, str) and not value.strip():
@@ -24,3 +26,7 @@ OptionalDateQuery = Annotated[
     BeforeValidator(blank_as_none),
 ]
 OptionalBoolQuery = Annotated[bool | None, Query(), BeforeValidator(blank_as_none)]
+# Exposed as `?status=`; the Python name avoids shadowing `fastapi.status` in the routers.
+StatusFilterQuery = Annotated[
+    AppointmentStatus | None, Query(alias="status"), BeforeValidator(blank_as_none)
+]

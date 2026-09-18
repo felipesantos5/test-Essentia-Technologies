@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from clinic_api.errors import NotFoundError
@@ -29,18 +29,29 @@ def get_specialty(session: Session, specialty_id: int) -> Specialty:
     return specialty
 
 
+def _active_doctors() -> Select[tuple[Doctor]]:
+    """Active doctors with the specialty and weekly schedule eagerly loaded."""
+    return (
+        select(Doctor)
+        .options(joinedload(Doctor.specialty), selectinload(Doctor.schedules))
+        .where(Doctor.is_active.is_(True))
+    )
+
+
+def get_active_doctor(session: Session, doctor_id: int) -> Doctor:
+    doctor = session.scalar(_active_doctors().where(Doctor.id == doctor_id))
+    if doctor is None:
+        raise _doctor_not_found(doctor_id)
+    return doctor
+
+
 def list_active_doctors(
     session: Session, *, specialty_id: int | None = None, doctor_id: int | None = None
 ) -> Sequence[Doctor]:
     if specialty_id is not None:
         get_specialty(session, specialty_id)
 
-    query = (
-        select(Doctor)
-        .options(joinedload(Doctor.specialty), selectinload(Doctor.schedules))
-        .where(Doctor.is_active.is_(True))
-        .order_by(Doctor.full_name)
-    )
+    query = _active_doctors().order_by(Doctor.full_name)
     if specialty_id is not None:
         query = query.where(Doctor.specialty_id == specialty_id)
     if doctor_id is not None:
@@ -48,10 +59,14 @@ def list_active_doctors(
     doctors = session.scalars(query).all()
 
     if doctor_id is not None and not doctors:
-        raise NotFoundError(
-            "DOCTOR_NOT_FOUND", f"Active doctor {doctor_id} not found.", {"doctor_id": doctor_id}
-        )
+        raise _doctor_not_found(doctor_id)
     return doctors
+
+
+def _doctor_not_found(doctor_id: int) -> NotFoundError:
+    return NotFoundError(
+        "DOCTOR_NOT_FOUND", f"Active doctor {doctor_id} not found.", {"doctor_id": doctor_id}
+    )
 
 
 def list_active_payment_methods(session: Session) -> Sequence[PaymentMethod]:

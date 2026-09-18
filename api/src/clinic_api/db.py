@@ -28,10 +28,15 @@ def ensure_sqlite_directory(database_url: str) -> None:
 
 
 def _set_sqlite_pragmas(dbapi_connection: Any, _connection_record: Any) -> None:
-    # SQLite ships with foreign keys disabled; WAL + busy_timeout avoid "database is locked".
+    # SQLite ships with foreign keys disabled. WAL lets readers run alongside the single
+    # writer and, with synchronous=NORMAL, only fsyncs on checkpoint (the standard WAL
+    # setting). busy_timeout makes a second writer wait instead of failing with
+    # "database is locked". journal_mode persists in the file; it is re-issued so a fresh
+    # database gets it too.
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
     cursor.execute("PRAGMA busy_timeout=5000")
     cursor.close()
 
@@ -39,6 +44,7 @@ def _set_sqlite_pragmas(dbapi_connection: Any, _connection_record: Any) -> None:
 def create_db_engine(database_url: str) -> Engine:
     ensure_sqlite_directory(database_url)
     is_sqlite = make_url(database_url).get_backend_name() == "sqlite"
+    # Pooled connections are reused across FastAPI's threadpool threads.
     connect_args = {"check_same_thread": False} if is_sqlite else {}
     engine = create_engine(database_url, connect_args=connect_args)
     if is_sqlite:
@@ -53,7 +59,8 @@ def get_engine() -> Engine:
 
 @lru_cache
 def get_session_factory() -> sessionmaker[Session]:
-    return sessionmaker(bind=get_engine(), autoflush=False, expire_on_commit=False)
+    # Responses are serialized after the commit; keeping attributes loaded avoids a re-SELECT.
+    return sessionmaker(bind=get_engine(), expire_on_commit=False)
 
 
 def get_session() -> Iterator[Session]:

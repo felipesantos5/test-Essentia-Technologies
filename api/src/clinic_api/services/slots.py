@@ -5,16 +5,6 @@ from datetime import date, datetime, time, timedelta
 from typing import Protocol
 from zoneinfo import ZoneInfo
 
-WEEKDAY_NAMES_PT_BR = (
-    "segunda-feira",
-    "terça-feira",
-    "quarta-feira",
-    "quinta-feira",
-    "sexta-feira",
-    "sábado",
-    "domingo",
-)
-
 
 class ScheduleBlock(Protocol):
     @property

@@ -1,6 +1,22 @@
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel
+
+# Index = Python weekday (Monday = 0); used wherever a date is rendered for the patient.
+WEEKDAY_NAMES_PT_BR = (
+    "segunda-feira",
+    "terça-feira",
+    "quarta-feira",
+    "quinta-feira",
+    "sexta-feira",
+    "sábado",
+    "domingo",
+)
+
+
+class HealthRead(BaseModel):
+    status: Literal["ok", "degraded"]
+    database: Literal["ok", "unavailable"]
 
 
 class ErrorBody(BaseModel):

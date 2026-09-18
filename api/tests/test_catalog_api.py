@@ -1,8 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from clinic_api.config import Settings
+from clinic_api.models import Doctor
 from clinic_api.schemas.catalog import Money
 from clinic_api.seed import seed_database
 from tests.conftest import FIXED_NOW
@@ -66,6 +68,21 @@ def test_list_doctors_treats_blank_filter_as_absent(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert len(response.json()) == 4
+
+
+@pytest.mark.usefixtures("seeded")
+def test_list_doctors_hides_inactive_doctors(client: TestClient, session: Session) -> None:
+    cardiologist = session.scalar(select(Doctor).where(Doctor.crm == "CRM-SP 234567"))
+    assert cardiologist is not None
+    cardiologist.is_active = False
+    session.commit()
+
+    names = [doctor["full_name"] for doctor in client.get("/api/v1/doctors").json()]
+    availability = client.get("/api/v1/availability", params={"doctor_id": cardiologist.id})
+
+    assert len(names) == 3
+    assert "Dr. Carlos Eduardo Lima" not in names
+    assert availability.status_code == 404
 
 
 @pytest.mark.usefixtures("seeded")

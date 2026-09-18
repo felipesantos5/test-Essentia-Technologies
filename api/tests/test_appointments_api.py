@@ -1,15 +1,15 @@
 from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from clinic_api.models import Doctor, Patient
-from tests.factories import create_appointment, create_doctor, create_patient
+from clinic_api.services import appointments
+from tests.conftest import SAO_PAULO
+from tests.factories import THURSDAY, create_appointment, create_doctor, create_patient
 
-SAO_PAULO = ZoneInfo("America/Sao_Paulo")
 THURSDAY_8AM = datetime(2026, 9, 17, 8, 0, tzinfo=SAO_PAULO)
 
 
@@ -120,7 +120,7 @@ class TestBookAppointment:
             full_name="Dr. Otávio Nunes",
             crm="CRM-SP 100002",
             specialty_name="Dermatologia",
-            blocks=((3, "08:15", "09:15", 60),),
+            blocks=((THURSDAY, "08:15", "09:15", 60),),
         )
         create_appointment(
             session,
@@ -168,6 +168,36 @@ class TestBookAppointment:
 
         assert response.status_code == 404
         assert _error_code(response) == code
+
+    def test_inactive_doctor_cannot_be_booked(
+        self, client: TestClient, session: Session, patient: Patient, doctor: Doctor
+    ) -> None:
+        doctor.is_active = False
+        session.commit()
+
+        response = _book(client, patient, doctor, THURSDAY_8AM.isoformat())
+
+        assert response.status_code == 404
+        assert _error_code(response) == "DOCTOR_NOT_FOUND"
+
+    def test_booking_that_loses_a_race_is_rejected_by_the_database(
+        self,
+        client: TestClient,
+        session: Session,
+        patient: Patient,
+        doctor: Doctor,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Simulates a concurrent booking committed between the conflict check and the insert:
+        # the check sees nothing, and the partial unique index has to catch the collision.
+        other = create_patient(session, full_name="Carla Mendes", email="carla@example.com")
+        create_appointment(session, patient=other, doctor=doctor, starts_at=THURSDAY_8AM)
+        monkeypatch.setattr(appointments, "_ensure_no_conflict", lambda *_args: None)
+
+        response = _book(client, patient, doctor, THURSDAY_8AM.isoformat())
+
+        assert response.status_code == 409
+        assert _error_code(response) == "SLOT_UNAVAILABLE"
 
 
 class TestCancelAppointment:
@@ -235,6 +265,105 @@ class TestCancelAppointment:
 
         assert response.status_code == 422
         assert _error_code(response) == "APPOINTMENT_IN_PAST"
+
+
+class TestListAppointments:
+    def test_lists_the_period_in_order_including_cancelled(
+        self, client: TestClient, session: Session, patient: Patient, doctor: Doctor
+    ) -> None:
+        later = create_appointment(session, patient=patient, doctor=doctor, starts_at=THURSDAY_8AM)
+        earlier = create_appointment(
+            session,
+            patient=patient,
+            doctor=doctor,
+            starts_at=datetime(2026, 9, 16, 9, 30, tzinfo=SAO_PAULO),
+        )
+        cancelled = create_appointment(
+            session,
+            patient=patient,
+            doctor=doctor,
+            starts_at=datetime(2026, 9, 17, 9, 0, tzinfo=SAO_PAULO),
+            cancelled_at=datetime(2026, 9, 15, tzinfo=SAO_PAULO),
+        )
+        create_appointment(  # outside the default 7-day window
+            session,
+            patient=patient,
+            doctor=doctor,
+            starts_at=datetime(2026, 9, 24, 8, 0, tzinfo=SAO_PAULO),
+        )
+
+        body = client.get("/api/v1/appointments").json()
+
+        assert (body["date_from"], body["date_to"]) == ("2026-09-16", "2026-09-22")
+        assert body["timezone"] == "America/Sao_Paulo"
+        assert [item["id"] for item in body["appointments"]] == [earlier.id, later.id, cancelled.id]
+        assert body["appointments"][0]["starts_at"] == "2026-09-16T09:30:00-03:00"
+
+    def test_filters_by_status_and_doctor(
+        self, client: TestClient, session: Session, patient: Patient, doctor: Doctor
+    ) -> None:
+        other_doctor = create_doctor(
+            session, full_name="Dr. Otávio Nunes", crm="CRM-SP 100002", specialty_name="Pediatria"
+        )
+        scheduled = create_appointment(
+            session, patient=patient, doctor=doctor, starts_at=THURSDAY_8AM
+        )
+        create_appointment(
+            session,
+            patient=patient,
+            doctor=doctor,
+            starts_at=datetime(2026, 9, 17, 9, 0, tzinfo=SAO_PAULO),
+            cancelled_at=datetime(2026, 9, 15, tzinfo=SAO_PAULO),
+        )
+        elsewhere = create_appointment(
+            session,
+            patient=patient,
+            doctor=other_doctor,
+            starts_at=datetime(2026, 9, 17, 9, 30, tzinfo=SAO_PAULO),
+        )
+
+        by_status = client.get("/api/v1/appointments", params={"status": "scheduled"}).json()
+        by_doctor = client.get("/api/v1/appointments", params={"doctor_id": other_doctor.id}).json()
+
+        assert [item["id"] for item in by_status["appointments"]] == [scheduled.id, elsewhere.id]
+        assert [item["id"] for item in by_doctor["appointments"]] == [elsewhere.id]
+
+    def test_period_boundaries_follow_the_clinic_timezone(
+        self, client: TestClient, session: Session, patient: Patient, doctor: Doctor
+    ) -> None:
+        # 23:30 in São Paulo is already the next day in UTC; the listing must not move it.
+        late = create_appointment(
+            session,
+            patient=patient,
+            doctor=doctor,
+            starts_at=datetime(2026, 9, 17, 23, 30, tzinfo=SAO_PAULO),
+        )
+
+        on_the_17th = client.get(
+            "/api/v1/appointments", params={"date_from": "2026-09-17", "date_to": "2026-09-17"}
+        ).json()
+        from_the_18th = client.get(
+            "/api/v1/appointments", params={"date_from": "2026-09-18"}
+        ).json()
+
+        assert [item["id"] for item in on_the_17th["appointments"]] == [late.id]
+        assert from_the_18th["appointments"] == []
+
+    @pytest.mark.parametrize(
+        ("params", "status_code", "code"),
+        [
+            ({"date_from": "2026-09-20", "date_to": "2026-09-19"}, 422, "INVALID_DATE_RANGE"),
+            ({"date_from": "2026-09-16", "date_to": "2026-10-16"}, 422, "DATE_RANGE_TOO_LARGE"),
+            ({"doctor_id": 999}, 404, "DOCTOR_NOT_FOUND"),
+        ],
+    )
+    def test_rejects_invalid_filters(
+        self, client: TestClient, params: dict[str, str], status_code: int, code: str
+    ) -> None:
+        response = client.get("/api/v1/appointments", params=params)
+
+        assert response.status_code == status_code
+        assert _error_code(response) == code
 
 
 def test_get_unknown_appointment_returns_404(client: TestClient) -> None:

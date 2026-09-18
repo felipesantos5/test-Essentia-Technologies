@@ -5,7 +5,7 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict
 
 from clinic_api.models import Doctor, DoctorSchedule, Specialty
-from clinic_api.services.slots import WEEKDAY_NAMES_PT_BR
+from clinic_api.schemas.common import WEEKDAY_NAMES_PT_BR
 
 
 class Money(BaseModel):

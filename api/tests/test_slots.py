@@ -1,12 +1,11 @@
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time
-from zoneinfo import ZoneInfo
 
 import pytest
 
 from clinic_api.services.slots import find_slot, generate_slots, iter_dates
+from tests.conftest import SAO_PAULO
 
-SAO_PAULO = ZoneInfo("America/Sao_Paulo")
 WEDNESDAY = date(2026, 9, 16)
 
 

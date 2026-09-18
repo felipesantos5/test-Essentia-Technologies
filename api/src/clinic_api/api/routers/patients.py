@@ -4,8 +4,7 @@ from fastapi import APIRouter, Path, Query, status
 from pydantic import BeforeValidator
 
 from clinic_api.api.deps import NowDep, SessionDep, SettingsDep
-from clinic_api.api.params import OptionalBoolQuery, blank_as_none
-from clinic_api.models import AppointmentStatus
+from clinic_api.api.params import OptionalBoolQuery, StatusFilterQuery, blank_as_none
 from clinic_api.schemas.appointments import AppointmentRead
 from clinic_api.schemas.common import error_responses
 from clinic_api.schemas.patients import PatientCreate, PatientRead
@@ -19,7 +18,6 @@ EmailQuery = Annotated[
     Query(description="Exact, case-insensitive match. Returns an empty list when not found."),
     BeforeValidator(blank_as_none),
 ]
-StatusQuery = Annotated[AppointmentStatus | None, Query(), BeforeValidator(blank_as_none)]
 
 
 @router.get("", summary="Search patients by email")
@@ -55,10 +53,10 @@ def list_patient_appointments(
     session: SessionDep,
     settings: SettingsDep,
     now: NowDep,
-    status: StatusQuery = None,
+    status_filter: StatusFilterQuery = None,
     upcoming: OptionalBoolQuery = None,
 ) -> list[AppointmentRead]:
     items = appointments.list_patient_appointments(
-        session, patient_id=patient_id, now=now, status=status, upcoming=upcoming
+        session, patient_id=patient_id, now=now, status=status_filter, upcoming=upcoming
     )
     return [AppointmentRead.from_model(item, settings.tz) for item in items]

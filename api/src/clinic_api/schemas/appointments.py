@@ -1,13 +1,16 @@
-from datetime import datetime
-from typing import Annotated, Self
+from datetime import date, datetime
+from typing import TYPE_CHECKING, Annotated, Self
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, StringConstraints
 
 from clinic_api.models import Appointment, AppointmentStatus
 from clinic_api.schemas.catalog import Money
+from clinic_api.schemas.common import WEEKDAY_NAMES_PT_BR
 from clinic_api.schemas.patients import NormalizedEmail, PatientRead
-from clinic_api.services.slots import WEEKDAY_NAMES_PT_BR
+
+if TYPE_CHECKING:
+    from clinic_api.services.appointments import AppointmentPeriod
 
 OptionalText = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] | None
 
@@ -87,4 +90,21 @@ class AppointmentRead(BaseModel):
                 full_name=appointment.doctor.full_name,
                 specialty=appointment.doctor.specialty.name,
             ),
+        )
+
+
+class AppointmentListRead(BaseModel):
+    date_from: date
+    date_to: date
+    timezone: str
+    appointments: list[AppointmentRead]
+
+    @classmethod
+    def from_domain(cls, period: "AppointmentPeriod", timezone: str) -> Self:
+        tz = ZoneInfo(timezone)
+        return cls(
+            date_from=period.date_from,
+            date_to=period.date_to,
+            timezone=timezone,
+            appointments=[AppointmentRead.from_model(item, tz) for item in period.appointments],
         )

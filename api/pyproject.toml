@@ -10,6 +10,7 @@ dependencies = [
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
     "sqlalchemy>=2.0.54",
+    # python:*-slim images ship without the system zoneinfo database.
     "tzdata>=2026.4",
     "uvicorn[standard]>=0.53.0",
 ]
@@ -70,3 +71,4 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
+fail_under = 95

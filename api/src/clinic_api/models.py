@@ -188,8 +188,10 @@ class Appointment(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id", ondelete="RESTRICT"))
     doctor_id: Mapped[int] = mapped_column(ForeignKey("doctors.id", ondelete="RESTRICT"))
-    starts_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    starts_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)  # period listings
     ends_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    # Stored as VARCHAR + CHECK constraint (portable across SQLite and Postgres); the lambda
+    # persists the values ("scheduled"), not the member names ("SCHEDULED").
     status: Mapped[AppointmentStatus] = mapped_column(
         Enum(
             AppointmentStatus,

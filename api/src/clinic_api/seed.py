@@ -24,11 +24,13 @@ from clinic_api.models import (
     PaymentMethod,
     Specialty,
 )
-from clinic_api.services.slots import generate_slots, iter_dates
+from clinic_api.services.slots import find_slot, generate_slots, iter_dates
 
 logger = logging.getLogger(__name__)
 
 MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY = range(6)
+# Every seeded doctor works at least once a week, so two weeks always contain the wanted slot.
+SLOT_SEARCH_DAYS = 14
 
 
 @dataclass(frozen=True)
@@ -154,7 +156,6 @@ def seed_database(session: Session, settings: Settings, now: datetime) -> None:
     doctors = _upsert_doctors(session, specialties)
     patients = _upsert_patients(session, settings)
     _upsert_payment_methods(session)
-    session.flush()
 
     if not session.scalar(select(func.count()).select_from(Appointment)):
         _create_sample_appointments(session, doctors, patients, settings.tz, now)
@@ -245,15 +246,15 @@ def _create_sample_appointments(
     def book(
         patient_email: str, doctor: Doctor, starts_at: datetime, *, cancelled: bool = False
     ) -> None:
-        slot_minutes = next(
-            block.slot_minutes for block in doctor.schedules if block.weekday == starts_at.weekday()
-        )
+        slot = find_slot(doctor.schedules, starts_at, tz)
+        if slot is None:
+            raise LookupError(f"{starts_at} is not a slot in {doctor.full_name}'s schedule")
         session.add(
             Appointment(
                 patient=patients[patient_email],
                 doctor=doctor,
-                starts_at=starts_at,
-                ends_at=starts_at + timedelta(minutes=slot_minutes),
+                starts_at=slot[0],
+                ends_at=slot[1],
                 status=AppointmentStatus.CANCELLED if cancelled else AppointmentStatus.SCHEDULED,
                 price_cents=doctor.specialty.price_cents,
                 cancelled_at=now if cancelled else None,
@@ -277,7 +278,7 @@ def _create_sample_appointments(
 def _nth_slot(doctor: Doctor, start_day: date, tz: ZoneInfo, index: int = 0) -> datetime:
     slots = (
         slot
-        for day in iter_dates(start_day, start_day + timedelta(days=14))
+        for day in iter_dates(start_day, start_day + timedelta(days=SLOT_SEARCH_DAYS))
         for slot in generate_slots(doctor.schedules, day, tz)
     )
     for position, slot in enumerate(slots):

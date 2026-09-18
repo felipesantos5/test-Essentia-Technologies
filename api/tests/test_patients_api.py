@@ -1,14 +1,12 @@
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from tests.conftest import FIXED_NOW
+from clinic_api.services import patients
+from tests.conftest import FIXED_NOW, SAO_PAULO
 from tests.factories import create_appointment, create_doctor, create_patient
-
-SAO_PAULO = ZoneInfo("America/Sao_Paulo")
 
 
 def test_search_patients_by_email_is_case_insensitive(client: TestClient, session: Session) -> None:
@@ -58,6 +56,27 @@ def test_create_patient_with_existing_email_returns_409(
         json={
             "full_name": "Outro Nome",
             "email": "BRUNO.TAVARES@example.com",
+            "phone": "(11) 90000-0000",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "PATIENT_EMAIL_ALREADY_EXISTS"
+
+
+def test_concurrent_registration_with_same_email_returns_409(
+    client: TestClient, session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The lookup misses (as if the other request committed right after it); the unique index
+    # on `patients.email` still has to turn the collision into the same 409.
+    create_patient(session)
+    monkeypatch.setattr(patients, "find_patients", lambda *_args, **_kwargs: [])
+
+    response = client.post(
+        "/api/v1/patients",
+        json={
+            "full_name": "Outro Nome",
+            "email": "bruno.tavares@example.com",
             "phone": "(11) 90000-0000",
         },
     )

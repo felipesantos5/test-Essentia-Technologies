@@ -1,14 +1,18 @@
 from collections.abc import Sequence
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import Select, or_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, joinedload
 
+from clinic_api.config import Settings
 from clinic_api.errors import BusinessRuleError, ConflictError, NotFoundError
 from clinic_api.models import Appointment, AppointmentStatus, Doctor
 from clinic_api.schemas.appointments import AppointmentCancel, AppointmentCreate
+from clinic_api.services.availability import AvailabilityCache, validate_date_range
+from clinic_api.services.catalog import get_active_doctor
 from clinic_api.services.patients import get_patient
 from clinic_api.services.slots import find_slot
 
@@ -25,6 +29,44 @@ def get_appointment(session: Session, appointment_id: int) -> Appointment:
     if appointment is None:
         raise _appointment_not_found(appointment_id)
     return appointment
+
+
+@dataclass(frozen=True, slots=True)
+class AppointmentPeriod:
+    date_from: date
+    date_to: date
+    appointments: Sequence[Appointment]
+
+
+def list_appointments(
+    session: Session,
+    *,
+    settings: Settings,
+    now: datetime,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    status: AppointmentStatus | None = None,
+    doctor_id: int | None = None,
+) -> AppointmentPeriod:
+    """Appointments starting inside an inclusive range of clinic-local dates (panel listing)."""
+    tz = settings.tz
+    date_from = date_from or now.astimezone(tz).date()
+    date_to = date_to or date_from + timedelta(days=settings.availability_default_days - 1)
+    validate_date_range(date_from, date_to, settings.availability_max_days)
+    if doctor_id is not None:
+        get_active_doctor(session, doctor_id)
+
+    range_start = datetime.combine(date_from, time.min, tzinfo=tz)
+    range_end = datetime.combine(date_to + timedelta(days=1), time.min, tzinfo=tz)
+    query = _with_relations().where(
+        Appointment.starts_at >= range_start, Appointment.starts_at < range_end
+    )
+    if status is not None:
+        query = query.where(Appointment.status == status)
+    if doctor_id is not None:
+        query = query.where(Appointment.doctor_id == doctor_id)
+    appointments = session.scalars(query.order_by(Appointment.starts_at, Appointment.id)).all()
+    return AppointmentPeriod(date_from=date_from, date_to=date_to, appointments=appointments)
 
 
 def list_patient_appointments(
@@ -47,20 +89,15 @@ def list_patient_appointments(
 
 
 def book_appointment(
-    session: Session, data: AppointmentCreate, *, now: datetime, tz: ZoneInfo
+    session: Session,
+    data: AppointmentCreate,
+    *,
+    now: datetime,
+    tz: ZoneInfo,
+    availability_cache: AvailabilityCache,
 ) -> Appointment:
     patient = get_patient(session, data.patient_id)
-    doctor = session.scalar(
-        select(Doctor)
-        .options(joinedload(Doctor.specialty), selectinload(Doctor.schedules))
-        .where(Doctor.id == data.doctor_id, Doctor.is_active.is_(True))
-    )
-    if doctor is None:
-        raise NotFoundError(
-            "DOCTOR_NOT_FOUND",
-            f"Active doctor {data.doctor_id} not found.",
-            {"doctor_id": data.doctor_id},
-        )
+    doctor = get_active_doctor(session, data.doctor_id)
 
     starts_at = data.starts_at if data.starts_at.tzinfo else data.starts_at.replace(tzinfo=tz)
     details = {"doctor_id": doctor.id, "starts_at": starts_at.astimezone(tz).isoformat()}
@@ -93,15 +130,23 @@ def book_appointment(
         session.rollback()
         _ensure_no_conflict(session, doctor.id, patient.id, slot_start, slot_end)
         raise ConflictError("SLOT_UNAVAILABLE", "This slot was just booked.", details) from exc
-    return get_appointment(session, appointment.id)
+    # Only after the commit: a read that lands in between must not cache the old agenda.
+    availability_cache.clear()
+    # Patient, doctor and specialty are already loaded; `expire_on_commit=False` keeps them.
+    return appointment
 
 
 def cancel_appointment(
-    session: Session, appointment_id: int, data: AppointmentCancel, *, now: datetime
+    session: Session,
+    appointment_id: int,
+    data: AppointmentCancel,
+    *,
+    now: datetime,
+    availability_cache: AvailabilityCache,
 ) -> Appointment:
-    appointment = session.scalar(_with_relations().where(Appointment.id == appointment_id))
+    appointment = get_appointment(session, appointment_id)
     # An email mismatch is reported as "not found" to avoid confirming someone else's booking.
-    if appointment is None or appointment.patient.email != data.patient_email:
+    if appointment.patient.email != data.patient_email:
         raise _appointment_not_found(appointment_id)
 
     if appointment.status is AppointmentStatus.CANCELLED:
@@ -121,6 +166,7 @@ def cancel_appointment(
     appointment.cancelled_at = now
     appointment.cancellation_reason = data.reason or None
     session.commit()
+    availability_cache.clear()
     return appointment
 
 

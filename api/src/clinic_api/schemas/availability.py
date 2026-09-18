@@ -3,9 +3,9 @@ from typing import Self
 
 from pydantic import BaseModel
 
-from clinic_api.schemas.catalog import SpecialtyRead
+from clinic_api.schemas.catalog import Money, SpecialtyRead
+from clinic_api.schemas.common import WEEKDAY_NAMES_PT_BR
 from clinic_api.services.availability import Availability, DaySlots, DoctorAvailability
-from clinic_api.services.slots import WEEKDAY_NAMES_PT_BR
 
 
 class AvailableDayRead(BaseModel):
@@ -16,7 +16,9 @@ class AvailableDayRead(BaseModel):
     @classmethod
     def from_domain(cls, day: DaySlots) -> Self:
         return cls(
-            date=day.day, weekday_name=WEEKDAY_NAMES_PT_BR[day.day.weekday()], slots=day.slots
+            date=day.day,
+            weekday_name=WEEKDAY_NAMES_PT_BR[day.day.weekday()],
+            slots=list(day.slots),
         )
 
 
@@ -28,10 +30,15 @@ class DoctorAvailabilityRead(BaseModel):
 
     @classmethod
     def from_domain(cls, item: DoctorAvailability) -> Self:
+        doctor = item.doctor
         return cls(
-            doctor_id=item.doctor.id,
-            doctor_name=item.doctor.full_name,
-            specialty=SpecialtyRead.from_model(item.doctor.specialty),
+            doctor_id=doctor.id,
+            doctor_name=doctor.full_name,
+            specialty=SpecialtyRead(
+                id=doctor.specialty_id,
+                name=doctor.specialty_name,
+                consultation_price=Money.from_cents(doctor.price_cents),
+            ),
             days=[AvailableDayRead.from_domain(day) for day in item.days],
         )
 

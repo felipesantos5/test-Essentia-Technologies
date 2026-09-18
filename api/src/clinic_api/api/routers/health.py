@@ -1,18 +1,11 @@
-from typing import Literal
-
 from fastapi import APIRouter, Response, status
-from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from clinic_api.api.deps import SessionDep
+from clinic_api.schemas.common import HealthRead
 
 router = APIRouter(tags=["health"])
-
-
-class HealthRead(BaseModel):
-    status: Literal["ok", "degraded"]
-    database: Literal["ok", "unavailable"]
 
 
 @router.get("/health", summary="Liveness and database connectivity")
