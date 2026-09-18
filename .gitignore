@@ -21,6 +21,8 @@ api/data/
 # Local artifacts
 tmp/
 *.log
+.playwright-mcp/
+contexto.pdf
 
 # OS / editors
 .DS_Store
