@@ -2,69 +2,166 @@
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Clínica Essentia Saúde · Atendimento</title>
     <meta name="description" content="Assistente virtual da clínica: horários, agendamentos, cancelamentos e valores." />
+    <meta name="theme-color" content="#f0f2f5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#202c33" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="chat" aria-labelledby="chat-title">
-      <header class="chat__header">
-        <div class="chat__identity">
-          <span class="chat__avatar" aria-hidden="true">🩺</span>
-          <div>
-            <h1 id="chat-title" class="chat__title">Clínica Essentia Saúde</h1>
-            <p class="chat__subtitle">Assistente virtual · responde em texto ou voz</p>
-          </div>
+    <div class="app is-loading" id="app">
+      <aside class="sidebar" aria-label="Conversas">
+        <header class="sidebar__header">
+          <h1 class="sidebar__title">Conversas</h1>
+          <button type="button" class="icon-button" id="new-chat" aria-label="Nova conversa" title="Nova conversa">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h9v2H6v12h12v-7h2v9H4V4Zm14.7-1.4 2.7 2.7-8.6 8.6h-2.7v-2.7l8.6-8.6Zm0 2.8-6.6 6.6v.6h.6l6.6-6.6-.6-.6Z"/></svg>
+          </button>
+        </header>
+        <div class="sidebar__search">
+          <label class="search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14Z"/></svg>
+            <span class="visually-hidden">Pesquisar conversas</span>
+            <input id="search-input" type="search" placeholder="Pesquisar ou começar uma nova conversa" autocomplete="off" />
+          </label>
         </div>
-        <button type="button" class="button button--ghost" id="new-conversation">Nova conversa</button>
-      </header>
+        <div class="sidebar__filters">
+          <button type="button" class="filter is-active" data-filter="all" aria-pressed="true">Todas</button>
+          <button type="button" class="filter" data-filter="unread" aria-pressed="false">Não lidas</button>
+        </div>
+        <nav class="chat-list" id="chat-list" aria-label="Lista de conversas"></nav>
+        <p class="chat-list__empty" id="chat-list-empty" hidden></p>
+      </aside>
 
-      <section class="chat__messages" id="messages" aria-live="polite" aria-label="Mensagens">
-        <div class="empty" id="empty-state">
-          <p class="empty__title">Como posso ajudar?</p>
-          <p class="empty__text">Escreva ou grave um áudio. Pergunta em áudio recebe resposta em áudio.</p>
-          <div class="empty__suggestions">
-            <button type="button" class="chip" data-suggestion>Olá!</button>
-            <button type="button" class="chip" data-suggestion>Quais horários de cardiologia estão livres?</button>
-            <button type="button" class="chip" data-suggestion>Quero agendar uma consulta</button>
-            <button type="button" class="chip" data-suggestion>Quero cancelar minha consulta</button>
-            <button type="button" class="chip" data-suggestion>Quais os valores e formas de pagamento?</button>
-          </div>
+      <section class="panel">
+        <div class="intro-panel" id="intro-panel">
+          <span class="avatar intro-panel__avatar" aria-hidden="true">
+            <img src="logo-whats.png" alt="" />
+          </span>
+          <h2 class="intro-panel__title">Clínica Essentia Saúde</h2>
+          <p class="intro-panel__text">
+            Atendimento por texto ou voz: horários, agendamentos, cancelamentos, valores e formas de pagamento.
+            Escolha uma conversa ao lado ou comece uma nova.
+          </p>
+          <button type="button" class="button-primary" id="intro-new-chat">Nova conversa</button>
+          <a class="intro-panel__link" href="painel.html">Ver o painel de consultas</a>
         </div>
+
+        <main class="chat" id="chat" hidden aria-labelledby="chat-title">
+          <header class="chat__header">
+            <button type="button" class="icon-button chat__back" id="back-button" aria-label="Voltar para as conversas">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2Z"/></svg>
+            </button>
+            <span class="avatar" aria-hidden="true">
+              <img src="logo-whats.png" alt="" />
+            </span>
+            <div class="chat__identity">
+              <h2 id="chat-title" class="chat__title">Clínica Essentia Saúde</h2>
+              <p class="chat__status" id="chat-status" aria-live="polite">online</p>
+            </div>
+            <div class="menu">
+              <button type="button" class="icon-button" id="menu-button" aria-label="Menu da conversa" aria-haspopup="menu" aria-expanded="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg>
+              </button>
+              <div class="menu__list" id="menu-list" role="menu" hidden>
+                <button type="button" class="menu__item" role="menuitem" id="delete-conversation">Apagar conversa</button>
+              </div>
+            </div>
+          </header>
+
+          <section class="chat__messages" id="messages" aria-live="polite" aria-label="Mensagens">
+            <div class="intro" id="intro">
+              <p class="system system--notice">
+                Você está falando com a assistente virtual da clínica. Escreva ou grave um áudio: pergunta em áudio recebe resposta em áudio.
+              </p>
+              <div class="quick-replies" id="quick-replies" aria-label="Sugestões">
+                <button type="button" class="quick-reply" data-suggestion>Olá!</button>
+                <button type="button" class="quick-reply" data-suggestion>Quais horários de cardiologia estão livres?</button>
+                <button type="button" class="quick-reply" data-suggestion>Quero agendar uma consulta</button>
+                <button type="button" class="quick-reply" data-suggestion>Quero cancelar minha consulta</button>
+                <button type="button" class="quick-reply" data-suggestion>Quais os valores e formas de pagamento?</button>
+              </div>
+            </div>
+          </section>
+
+          <footer class="composer">
+            <form class="composer__form" id="composer" autocomplete="off">
+              <button type="button" class="icon-button" id="attach-button" aria-label="Enviar arquivo de áudio" title="Enviar arquivo de áudio">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+              </button>
+              <input type="file" id="audio-file" accept="audio/*" hidden />
+              <label class="visually-hidden" for="message-input">Mensagem</label>
+              <textarea id="message-input" class="composer__input" rows="1" maxlength="1000" placeholder="Digite uma mensagem"></textarea>
+              <button type="button" class="icon-button" id="record-button" aria-label="Gravar áudio" title="Gravar áudio">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
+              </button>
+              <button type="submit" class="send-button" id="send-button" aria-label="Enviar mensagem" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.3 10l12.6 2-12.6 2z"/></svg>
+              </button>
+            </form>
+            <div class="recorder" id="recorder" hidden>
+              <button type="button" class="icon-button" id="cancel-recording" aria-label="Descartar gravação" title="Descartar gravação">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-3 6h12l-1 12H7L6 9Zm3 2v8h2v-8H9Zm4 0v8h2v-8h-2Z"/></svg>
+              </button>
+              <span class="recorder__timer"><span class="recorder__dot" aria-hidden="true"></span><span id="recording-timer">0:00</span></span>
+              <button type="button" class="send-button" id="stop-recording" aria-label="Enviar áudio" title="Enviar áudio">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.3 10l12.6 2-12.6 2z"/></svg>
+              </button>
+            </div>
+          </footer>
+        </main>
       </section>
+    </div>
 
-      <form class="composer" id="composer" autocomplete="off">
-        <div class="composer__recording" id="recording-indicator" hidden>
-          <span class="composer__dot" aria-hidden="true"></span>
-          Gravando <span id="recording-timer">0:00</span>
-          <button type="button" class="button button--link" id="cancel-recording">Descartar</button>
-        </div>
-        <label class="visually-hidden" for="message-input">Mensagem</label>
-        <textarea
-          id="message-input"
-          class="composer__input"
-          rows="1"
-          maxlength="1000"
-          placeholder="Digite sua mensagem…"
-        ></textarea>
-        <button type="button" class="button button--icon" id="record-button" aria-label="Gravar áudio" title="Gravar áudio">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
-        </button>
-        <button type="submit" class="button button--primary" id="send-button" aria-label="Enviar mensagem">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.3 10l12.6 2-12.6 2z"/></svg>
-        </button>
-      </form>
-    </main>
+    <template id="chat-item-template">
+      <button type="button" class="chat-item">
+        <span class="avatar chat-item__avatar" aria-hidden="true">
+          <img src="logo-whats.png" alt="" />
+        </span>
+        <span class="chat-item__body">
+          <span class="chat-item__row">
+            <span class="chat-item__name">Clínica Essentia Saúde</span>
+            <span class="chat-item__time"></span>
+          </span>
+          <span class="chat-item__row">
+            <span class="chat-item__preview"></span>
+            <span class="chat-item__badge" hidden></span>
+          </span>
+        </span>
+      </button>
+    </template>
 
     <template id="message-template">
       <article class="message">
         <div class="message__bubble">
           <div class="message__text"></div>
+          <span class="message__meta">
+            <span class="message__time"></span>
+            <svg class="tick" viewBox="0 0 18 11" aria-hidden="true"><path d="M1.5 6 4.5 9l7-7.5"/><path class="tick__second" d="M8.65 7.65 10 9l7-7.5"/></svg>
+          </span>
         </div>
-        <span class="message__meta"></span>
       </article>
+    </template>
+
+    <template id="voice-template">
+      <div class="voice">
+        <button type="button" class="voice__play" aria-label="Reproduzir">
+          <svg class="voice__icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          <svg class="voice__icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+        </button>
+        <div class="voice__body">
+          <div class="voice__track">
+            <div class="voice__wave" aria-hidden="true"></div>
+            <input type="range" class="voice__seek" min="0" max="100" step="0.1" value="0" aria-label="Posição do áudio" />
+          </div>
+          <span class="voice__duration">0:00</span>
+        </div>
+        <span class="voice__avatar" aria-hidden="true">
+          <span class="avatar"><svg viewBox="0 0 212 212"><path d="M106 116a35 35 0 1 0 0-70 35 35 0 0 0 0 70Zm0 16c-34 0-66 17-66 46v12h132v-12c0-29-32-46-66-46Z"/></svg></span>
+          <svg class="voice__mic" viewBox="0 0 24 24"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
+        </span>
+      </div>
     </template>
 
     <script src="app.js" type="module"></script>
