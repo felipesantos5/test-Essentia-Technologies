@@ -1,6 +1,6 @@
 # Essentia Clinic: atendimento médico automatizado com n8n e IA
 
-Case técnico *Especialista em Automações com IA e N8N* da Essentia Technologies.
+Case técnico _Especialista em Automações com IA e N8N_ da Essentia Technologies.
 
 O paciente conversa com a assistente virtual da **Clínica Essentia Saúde** por **texto ou áudio**. Com isso ele pode:
 
@@ -22,8 +22,7 @@ Quem manda áudio recebe a resposta em áudio (**OpenAI TTS**). Tudo é orquestr
 8. [Banco de dados](#banco-de-dados)
 9. [Fluxos n8n](#fluxos-n8n)
 10. [Decisões técnicas](#decisões-técnicas)
-11. [Limitações e próximos passos](#limitações-e-próximos-passos)
-12. [Entregáveis](#entregáveis)
+11. [Entregáveis](#entregáveis)
 
 ## Arquitetura
 
@@ -52,12 +51,12 @@ flowchart LR
     CN --> GM
 ```
 
-| Serviço | Imagem | Porta | Papel |
-|---|---|---|---|
-| `api` | build de `api/` | 8000 | API REST mock com banco SQLite, migrações Alembic e seed |
-| `n8n-import` | `n8nio/n8n:2.39.6` | — | Execução única: importa credenciais e workflows e os publica |
-| `n8n` | `n8nio/n8n:2.39.6` | 5678 | Orquestração: webhook, agente de IA, tools, Gmail, TTS |
-| `web` | `nginx:1.30-alpine` | 8080 | Web chat e painel de consultas (estáticos); proxy de `/webhook/` para o n8n e, para o painel, de duas rotas de leitura da API com a `X-API-Key` injetada pelo nginx |
+| Serviço      | Imagem              | Porta | Papel                                                                                                                                                               |
+| ------------ | ------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `api`        | build de `api/`     | 8000  | API REST mock com banco SQLite, migrações Alembic e seed                                                                                                            |
+| `n8n-import` | `n8nio/n8n:2.39.6`  | —     | Execução única: importa credenciais e workflows e os publica                                                                                                        |
+| `n8n`        | `n8nio/n8n:2.39.6`  | 5678  | Orquestração: webhook, agente de IA, tools, Gmail, TTS                                                                                                              |
+| `web`        | `nginx:1.30-alpine` | 8080  | Web chat e painel de consultas (estáticos); proxy de `/webhook/` para o n8n e, para o painel, de duas rotas de leitura da API com a `X-API-Key` injetada pelo nginx |
 
 ## Estrutura do repositório
 
@@ -95,11 +94,11 @@ make env   # cria .env a partir de .env.example com CLINIC_API_KEY e N8N_ENCRYPT
 
 Preencha no `.env`:
 
-| Variável | Uso |
-|---|---|
-| `OPENAI_API_KEY` | LLM do agente, transcrição e TTS |
-| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | Cliente OAuth do Gmail |
-| `CLINIC_DEMO_PATIENT_EMAIL` (opcional) | Cria um paciente com o seu e-mail real no seed, para receber as confirmações |
+| Variável                                                | Uso                                                                          |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `OPENAI_API_KEY`                                        | LLM do agente, transcrição e TTS                                             |
+| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | Cliente OAuth do Gmail                                                       |
+| `CLINIC_DEMO_PATIENT_EMAIL` (opcional)                  | Cria um paciente com o seu e-mail real no seed, para receber as confirmações |
 
 > Os pacientes do seed usam `@example.com`, um domínio reservado: nenhum e-mail chega a uma pessoa real. Para ver a confirmação na sua caixa de entrada, use `CLINIC_DEMO_PATIENT_EMAIL` ou cadastre-se pelo chat com o seu e-mail.
 
@@ -110,8 +109,8 @@ Preencha no `.env`:
    - tipo **External**, status **Testing**;
    - adicione como **test user** a conta Google que vai enviar os e-mails.
 3. Em **Credentials → Create credentials → OAuth client ID**, escolha o tipo **Web application**.
-4. Em *Authorized redirect URIs*, cadastre `http://localhost:5678/rest/oauth2-credential/callback`.
-5. Copie *Client ID* e *Client secret* para o `.env`.
+4. Em _Authorized redirect URIs_, cadastre `http://localhost:5678/rest/oauth2-credential/callback`.
+5. Copie _Client ID_ e _Client secret_ para o `.env`.
 
 ## Execução
 
@@ -121,24 +120,24 @@ make up
 
 O comando sobe a stack na ordem certa:
 
-1. `api` roda as migrações e o seed e fica *healthy*.
+1. `api` roda as migrações e o seed e fica _healthy_.
 2. `n8n-import` cria as credenciais a partir do `.env`, importa os workflows e os publica.
 3. `n8n` inicia com os webhooks de produção ativos.
 4. `web` sobe o chat.
 
 `make ps` mostra o status e `make logs` acompanha os logs.
 
-| URL | O que é |
-|---|---|
-| http://localhost:8080 | Web chat do paciente |
-| http://localhost:5678 | Editor do n8n |
-| http://localhost:8080/painel.html | Painel de consultas: agenda por período, médico e status |
-| http://localhost:8000/docs | Swagger da API (use **Authorize** com a `CLINIC_API_KEY`) |
+| URL                               | O que é                                                   |
+| --------------------------------- | --------------------------------------------------------- |
+| http://localhost:8080             | Web chat do paciente                                      |
+| http://localhost:5678             | Editor do n8n                                             |
+| http://localhost:8080/painel.html | Painel de consultas: agenda por período, médico e status  |
+| http://localhost:8000/docs        | Swagger da API (use **Authorize** com a `CLINIC_API_KEY`) |
 
 ### Primeiro acesso ao n8n: conectar o Gmail
 
 1. Abra http://localhost:5678 e crie a conta de owner local.
-2. Vá em **Overview → Credentials → Gmail (Clinic)** e clique em **Sign in with Google**. Autorize com a conta cadastrada como *test user*.
+2. Vá em **Overview → Credentials → Gmail (Clinic)** e clique em **Sign in with Google**. Autorize com a conta cadastrada como _test user_.
 
 As credenciais `OpenAI (Clinic)` e `Clinic API key` já vêm preenchidas pelo bootstrap.
 
@@ -146,17 +145,17 @@ As credenciais `OpenAI (Clinic)` e `Clinic API key` já vêm preenchidas pelo bo
 
 ### Comandos úteis
 
-| Comando | Descrição |
-|---|---|
-| `make up` / `make down` | Sobe ou derruba a stack (mantém os volumes) |
-| `make reset` | Derruba e **apaga** os volumes (banco e dados do n8n) |
-| `make n8n-sync` | Para o n8n, reimporta e publica os workflows do repositório e sobe de novo (credenciais e token do Gmail são preservados) |
-| `make n8n-export` | Exporta os workflows editados na UI de volta para `n8n/workflows/` |
-| `make email-templates` | Injeta os templates de `n8n/email-templates/` nos nodes do Gmail |
-| `make email-preview` | Gera o preview dos e-mails com dados de exemplo em `tmp/email-preview/` |
-| `make verify` | Gate local: lint, mypy strict, testes com cobertura, validação dos workflows e dos templates de e-mail |
-| `make smoke` | Smoke test ponta a ponta contra a stack rodando |
-| `make api-dev` | API local com reload, fora do Docker |
+| Comando                 | Descrição                                                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `make up` / `make down` | Sobe ou derruba a stack (mantém os volumes)                                                                               |
+| `make reset`            | Derruba e **apaga** os volumes (banco e dados do n8n)                                                                     |
+| `make n8n-sync`         | Para o n8n, reimporta e publica os workflows do repositório e sobe de novo (credenciais e token do Gmail são preservados) |
+| `make n8n-export`       | Exporta os workflows editados na UI de volta para `n8n/workflows/`                                                        |
+| `make email-templates`  | Injeta os templates de `n8n/email-templates/` nos nodes do Gmail                                                          |
+| `make email-preview`    | Gera o preview dos e-mails com dados de exemplo em `tmp/email-preview/`                                                   |
+| `make verify`           | Gate local: lint, mypy strict, testes com cobertura, validação dos workflows e dos templates de e-mail                    |
+| `make smoke`            | Smoke test ponta a ponta contra a stack rodando                                                                           |
+| `make api-dev`          | API local com reload, fora do Docker                                                                                      |
 
 ## Como testar
 
@@ -189,11 +188,11 @@ curl -s -X POST localhost:8080/webhook/clinic-chat \
 
 **Contrato do webhook** (`POST /webhook/clinic-chat`, `multipart/form-data` ou JSON):
 
-| Campo | Tipo | Descrição |
-|---|---|---|
-| `session_id` | texto | Identifica a conversa (memória do agente) |
-| `message` | texto | Mensagem de texto |
-| `audio` | arquivo | Mensagem de voz (webm, m4a, ogg, wav, mp3; até 25 MB) |
+| Campo        | Tipo    | Descrição                                             |
+| ------------ | ------- | ----------------------------------------------------- |
+| `session_id` | texto   | Identifica a conversa (memória do agente)             |
+| `message`    | texto   | Mensagem de texto                                     |
+| `audio`      | arquivo | Mensagem de voz (webm, m4a, ogg, wav, mp3; até 25 MB) |
 
 Exemplo de resposta a uma mensagem de áudio:
 
@@ -209,15 +208,15 @@ Exemplo de resposta a uma mensagem de áudio:
 
 Mensagens de texto recebem `type: "text"` e `audio: null`. Se o TTS falhar mesmo após as retentativas, a resposta a um áudio volta em texto com `audio_error: "TTS_FAILED"`. Falhas voltam com `reply_text` amigável e `error.code`:
 
-| Código | HTTP | Quando |
-|---|---|---|
-| `INVALID_REQUEST` | 400 | Nem `message` nem `audio` |
-| `TRANSCRIPTION_FAILED` | 422 | Áudio que não pôde ser transcrito |
-| `AGENT_FAILED` | 502 | Erro do LLM |
+| Código                 | HTTP | Quando                            |
+| ---------------------- | ---- | --------------------------------- |
+| `INVALID_REQUEST`      | 400  | Nem `message` nem `audio`         |
+| `TRANSCRIPTION_FAILED` | 422  | Áudio que não pôde ser transcrito |
+| `AGENT_FAILED`         | 502  | Erro do LLM                       |
 
 ### Postman
 
-Importe `postman/essentia-clinic.postman_collection.json` e o environment `postman/essentia-clinic-local.postman_environment.json`, e defina `api_key` com a `CLINIC_API_KEY` do `.env`. As pastas encadeiam variáveis e podem rodar no *Collection Runner* ou via CLI:
+Importe `postman/essentia-clinic.postman_collection.json` e o environment `postman/essentia-clinic-local.postman_environment.json`, e defina `api_key` com a `CLINIC_API_KEY` do `.env`. As pastas encadeiam variáveis e podem rodar no _Collection Runner_ ou via CLI:
 
 ```bash
 npx newman run postman/essentia-clinic.postman_collection.json \
@@ -237,32 +236,32 @@ O resultado dos cenários manuais e automatizados está em [`docs/CHECKLIST_TEST
 
 Base: `http://localhost:8000/api/v1`. Todas as rotas exigem o header `X-API-Key`, menos `/health`. A documentação interativa fica em `/docs`.
 
-| Método | Rota | Descrição |
-|---|---|---|
-| GET | `/health` | Liveness + conectividade com o banco |
-| GET | `/clinic` | Dados da clínica e mensagens de **saudação e encerramento** |
-| GET | `/specialties` | Especialidades com valor da consulta |
-| GET | `/doctors?specialty_id=` | Médicos ativos, especialidade e horários de atendimento |
-| GET | `/availability?specialty_id=&doctor_id=&date_from=&date_to=` | Horários livres (padrão: próximos 7 dias; máximo 14) |
-| GET | `/payment-info` | Valores por especialidade + formas de pagamento |
-| GET | `/patients?email=` | Busca por e-mail (lista vazia se não existir) |
-| POST | `/patients` | Cadastra paciente |
-| GET | `/patients/{id}` | Detalhe do paciente |
-| GET | `/patients/{id}/appointments?status=&upcoming=` | Consultas do paciente |
-| GET | `/appointments?date_from=&date_to=&status=&doctor_id=` | Consultas do período, incluindo canceladas (alimenta o painel) |
-| POST | `/appointments` | **Agenda** consulta |
-| GET | `/appointments/{id}` | Detalhe da consulta |
-| POST | `/appointments/{id}/cancel` | **Cancela** consulta (exige o e-mail do paciente) |
+| Método | Rota                                                         | Descrição                                                      |
+| ------ | ------------------------------------------------------------ | -------------------------------------------------------------- |
+| GET    | `/health`                                                    | Liveness + conectividade com o banco                           |
+| GET    | `/clinic`                                                    | Dados da clínica e mensagens de **saudação e encerramento**    |
+| GET    | `/specialties`                                               | Especialidades com valor da consulta                           |
+| GET    | `/doctors?specialty_id=`                                     | Médicos ativos, especialidade e horários de atendimento        |
+| GET    | `/availability?specialty_id=&doctor_id=&date_from=&date_to=` | Horários livres (padrão: próximos 7 dias; máximo 14)           |
+| GET    | `/payment-info`                                              | Valores por especialidade + formas de pagamento                |
+| GET    | `/patients?email=`                                           | Busca por e-mail (lista vazia se não existir)                  |
+| POST   | `/patients`                                                  | Cadastra paciente                                              |
+| GET    | `/patients/{id}`                                             | Detalhe do paciente                                            |
+| GET    | `/patients/{id}/appointments?status=&upcoming=`              | Consultas do paciente                                          |
+| GET    | `/appointments?date_from=&date_to=&status=&doctor_id=`       | Consultas do período, incluindo canceladas (alimenta o painel) |
+| POST   | `/appointments`                                              | **Agenda** consulta                                            |
+| GET    | `/appointments/{id}`                                         | Detalhe da consulta                                            |
+| POST   | `/appointments/{id}/cancel`                                  | **Cancela** consulta (exige o e-mail do paciente)              |
 
 **Erros:** todos seguem o mesmo envelope, `{"error": {"code": "SLOT_UNAVAILABLE", "message": "...", "details": {...}}}`.
 
-| HTTP | Códigos |
-|---|---|
-| 401 | `INVALID_API_KEY` |
-| 404 | `*_NOT_FOUND`, `CLINIC_NOT_CONFIGURED` (seed não rodou) |
-| 409 | `SLOT_UNAVAILABLE`, `PATIENT_TIME_CONFLICT`, `APPOINTMENT_ALREADY_BOOKED`, `APPOINTMENT_ALREADY_CANCELLED`, `PATIENT_EMAIL_ALREADY_EXISTS` |
-| 422 | `SLOT_IN_PAST`, `SLOT_OUTSIDE_SCHEDULE`, `APPOINTMENT_IN_PAST`, `INVALID_DATE_RANGE`, `DATE_RANGE_TOO_LARGE`, `VALIDATION_ERROR` |
-| 500 | `INTERNAL_ERROR` (erro inesperado, registrado no log) |
+| HTTP | Códigos                                                                                                                                    |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 401  | `INVALID_API_KEY`                                                                                                                          |
+| 404  | `*_NOT_FOUND`, `CLINIC_NOT_CONFIGURED` (seed não rodou)                                                                                    |
+| 409  | `SLOT_UNAVAILABLE`, `PATIENT_TIME_CONFLICT`, `APPOINTMENT_ALREADY_BOOKED`, `APPOINTMENT_ALREADY_CANCELLED`, `PATIENT_EMAIL_ALREADY_EXISTS` |
+| 422  | `SLOT_IN_PAST`, `SLOT_OUTSIDE_SCHEDULE`, `APPOINTMENT_IN_PAST`, `INVALID_DATE_RANGE`, `DATE_RANGE_TOO_LARGE`, `VALIDATION_ERROR`           |
+| 500  | `INTERNAL_ERROR` (erro inesperado, registrado no log)                                                                                      |
 
 **Regras de negócio:**
 
@@ -336,12 +335,12 @@ erDiagram
 
 O seed cria a clínica e quatro especialidades:
 
-| Especialidade | Valor |
-|---|---|
+| Especialidade | Valor  |
+| ------------- | ------ |
 | Clínica Geral | R$ 250 |
-| Cardiologia | R$ 380 |
-| Dermatologia | R$ 320 |
-| Pediatria | R$ 300 |
+| Cardiologia   | R$ 380 |
+| Dermatologia  | R$ 320 |
+| Pediatria     | R$ 300 |
 
 Também cria:
 
@@ -352,7 +351,7 @@ Também cria:
 
 ## Fluxos n8n
 
-Os workflows ficam em `n8n/workflows/` e são importados e publicados automaticamente. No canvas, os nomes dos nodes, as *sticky notes* de cada etapa e a legenda sob cada node estão em português. Só os nomes das ferramentas do agente ficam em `snake_case` (`check_availability`, `book_appointment`…): no n8n, o nome do node é o identificador da função que o modelo chama.
+Os workflows ficam em `n8n/workflows/` e são importados e publicados automaticamente. No canvas, os nomes dos nodes, as _sticky notes_ de cada etapa e a legenda sob cada node estão em português. Só os nomes das ferramentas do agente ficam em `snake_case` (`check_availability`, `book_appointment`…): no n8n, o nome do node é o identificador da função que o modelo chama.
 
 ### `Clínica – Chat principal`
 
@@ -360,13 +359,13 @@ Os workflows ficam em `n8n/workflows/` e são importados e publicados automatica
 2. **Rotear por tipo de mensagem** (Switch) decide pelo conteúdo:
    - arquivo `audio` → **Transcrever áudio** (OpenAI Whisper, pt);
    - campo `message` → texto;
-   - nenhum dos dois → *fallback* `400`.
+   - nenhum dos dois → _fallback_ `400`.
 3. **Normalizar entrada de áudio** / **de texto** (Set) padronizam `{session_id, message, input_type}`.
 4. **Assistente da clínica** (AI Agent) responde:
    - modelo `gpt-5-mini`;
    - **Memória da conversa** por `session_id`;
    - system prompt com data e hora atuais e regras de atendimento. Pede confirmação explícita antes de agendar ou cancelar e manda responder sem markdown quando a resposta vai virar áudio.
-5. As **ferramentas** chamam a API com a credencial *Header Auth*:
+5. As **ferramentas** chamam a API com a credencial _Header Auth_:
    - `get_clinic_info`: saudação e encerramento;
    - `list_doctors`;
    - `check_availability`;
@@ -382,23 +381,23 @@ Os workflows ficam em `n8n/workflows/` e são importados e publicados automatica
 
 ### `Clínica – Agendar consulta` e `Clínica – Cancelar consulta`
 
-São sub-workflows expostos ao agente como as tools `book_appointment` e `cancel_appointment` (*Call n8n Workflow Tool*).
+São sub-workflows expostos ao agente como as tools `book_appointment` e `cancel_appointment` (_Call n8n Workflow Tool_).
 
 1. Chamam a API: **Buscar paciente por e-mail** e **Criar consulta na API** (`POST /appointments`), ou **Cancelar consulta na API** (`POST /appointments/{id}/cancel`).
 2. Ramificam pelo status HTTP (**Consulta criada?** / **Consulta cancelada?**).
 3. Em caso de sucesso, **Buscar dados da clínica**, formatam os campos no node **Preparar e-mail** e enviam um **e-mail HTML pelo Gmail**.
 4. Devolvem ao agente `{ ok, email_sent, appointment | error }`.
 
-Nesta entrega o destinatário é **fixo** (`felipesantosmarcelino2004@gmail.com`, no campo *To* dos dois nodes do Gmail), para que toda confirmação e todo cancelamento cheguem a uma caixa real mesmo quando o paciente de teste usa um e-mail `@example.com`. O endereço nunca vem do texto gerado pelo modelo. Se o Gmail falhar, o node tenta de novo até 3 vezes; persistindo a falha, o agendamento continua válido e o agente avisa que o e-mail não foi enviado (`email_sent: false`).
+Nesta entrega o destinatário é **fixo** (`felipesantosmarcelino2004@gmail.com`, no campo _To_ dos dois nodes do Gmail), para que toda confirmação e todo cancelamento cheguem a uma caixa real mesmo quando o paciente de teste usa um e-mail `@example.com`. O endereço nunca vem do texto gerado pelo modelo. Se o Gmail falhar, o node tenta de novo até 3 vezes; persistindo a falha, o agendamento continua válido e o agente avisa que o e-mail não foi enviado (`email_sent: false`).
 
 ### E-mails de confirmação
 
-| Arquivo | Uso |
-|---|---|
-| `n8n/email-templates/layout.html` | Estrutura comum: header com o logo, card e rodapé com os dados da clínica |
-| `n8n/email-templates/appointment-booked.html` | Consulta confirmada: data e horário, detalhes, botões **Adicionar à agenda** (Google Agenda) e **Como chegar** (Google Maps) |
-| `n8n/email-templates/appointment-cancelled.html` | Cancelamento confirmado, com o convite para remarcar |
-| `n8n/email-templates/assets/` | Imagens dos e-mails (logo PNG otimizado, 4,6 KB) |
+| Arquivo                                          | Uso                                                                                                                          |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `n8n/email-templates/layout.html`                | Estrutura comum: header com o logo, card e rodapé com os dados da clínica                                                    |
+| `n8n/email-templates/appointment-booked.html`    | Consulta confirmada: data e horário, detalhes, botões **Adicionar à agenda** (Google Agenda) e **Como chegar** (Google Maps) |
+| `n8n/email-templates/appointment-cancelled.html` | Cancelamento confirmado, com o convite para remarcar                                                                         |
+| `n8n/email-templates/assets/`                    | Imagens dos e-mails (logo PNG otimizado, 4,6 KB)                                                                             |
 
 - **Compatível com clientes de e-mail.** Layout em tabelas com estilos inline, largura máxima de 600 px, responsivo no celular e com ajustes para o Outlook.
 - **Templates sem lógica.** Só aceitam `{{ $json.<campo> }}`. Datas, links e o escape do nome do paciente ficam no node **Preparar e-mail**.
@@ -424,7 +423,7 @@ Na volta, `make n8n-sync` publica o que estiver no repositório.
 
 - **Webhook + web chat próprio, em vez do Chat Trigger embutido.** O chat nativo não grava do microfone nem toca áudio de resposta. O webhook com contrato explícito serve ao web chat, ao Postman e ao curl. O histórico de conversas fica só no navegador (IndexedDB): o `session_id` de cada conversa é o que liga a página à memória do agente no n8n.
 - **Diferenciação multimodal pelo conteúdo.** O fluxo não depende de um campo `type` do cliente: se chegou arquivo `audio`, é áudio.
-- **Agendar e cancelar como sub-workflows.** A chamada à API e o e-mail ficam determinísticos. O LLM decide *quando* agir, mas não monta o e-mail nem escolhe o destinatário. Um retry do modelo cai em `409 APPOINTMENT_ALREADY_BOOKED` e não gera e-mail duplicado.
+- **Agendar e cancelar como sub-workflows.** A chamada à API e o e-mail ficam determinísticos. O LLM decide _quando_ agir, mas não monta o e-mail nem escolhe o destinatário. Um retry do modelo cai em `409 APPOINTMENT_ALREADY_BOOKED` e não gera e-mail duplicado.
 - **API síncrona (SQLAlchemy 2.0 sync).** O driver do SQLite é síncrono e o FastAPI roda endpoints `def` em threadpool. Async só adicionaria complexidade.
 - **Cache de disponibilidade em memória** ([`cache.py`](api/src/clinic_api/cache.py), usado por [`services/availability.py`](api/src/clinic_api/services/availability.py)):
   - **Chave:** período já resolvido, especialidade e médico. TTL de 60 s (`CLINIC_AVAILABILITY_CACHE_TTL_SECONDS`, `0` desliga) e no máximo 256 entradas, com descarte LRU.
@@ -440,27 +439,15 @@ Na volta, `make n8n-sync` publica o que estiver no repositório.
   - `ruff`, `mypy --strict`, 97 testes com 98% de cobertura (mínimo de 95% exigido no `pyproject.toml`), incluindo as corridas de agendamento e de cadastro resolvidas pelos índices únicos;
   - teste que garante que a migração bate com os models;
   - validação estática dos workflows: versões de node, conexões, referências `$('node')` nas expressões, credenciais provisionadas e a retentativa obrigatória nos nodes de Gmail e OpenAI (áudio);
-  - CI no GitHub Actions.
-
-## Limitações e próximos passos
-
-- A **memória do agente** fica na RAM do n8n e se perde ao reiniciar. Em produção: Postgres ou Redis Chat Memory.
-- O **e-mail como prova de posse** no cancelamento não é autenticação real. Em produção: código de verificação (OTP) por e-mail ou WhatsApp.
-- O node nativo de transcrição do n8n usa o **`whisper-1` fixo**, que a OpenAI já trata como modelo legado. Se ele for descontinuado, a troca é um HTTP Request multipart para `/v1/audio/transcriptions` com um modelo de transcrição atual da OpenAI, usando a mesma credencial.
-- A **checagem de sobreposição parcial** do paciente (duas consultas em médicos com grades diferentes, ex.: 8h15–9h15 e 8h30–9h00) roda na aplicação, fora do lock de escrita do SQLite. Os índices únicos parciais garantem no banco o caso relevante para a demo, o mesmo horário de início. Em produção, `BEGIN IMMEDIATE` (SQLite) ou `SELECT … FOR UPDATE` (Postgres) fecharia essa janela.
-- **SQLite** atende o mock. O modelo já declara os índices parciais também para Postgres (`postgresql_where`), o que facilita a migração.
-- O **cache de disponibilidade** é por processo, e a API roda com um único worker. Com várias réplicas, cada uma invalidaria só o próprio cache. O passo seguinte seria Redis com chave versionada (`availability:v{n}:…`) e `INCR` da versão a cada agendamento ou cancelamento.
-- O **painel de consultas** é somente leitura e, como todo o resto da demo, não tem login: quem acessa a porta 8080 vê a agenda. Em produção ficaria atrás de autenticação (por exemplo, OAuth da clínica) e o nginx só injetaria a chave para sessões autenticadas.
-- **Canal:** o mesmo webhook pode ser ligado a WhatsApp ou Telegram trocando só a camada de entrada e saída.
 
 ## Entregáveis
 
-| Item | Onde |
-|---|---|
-| Código da API | [`api/`](api) |
+| Item                                 | Onde                                                                                            |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| Código da API                        | [`api/`](api)                                                                                   |
 | Banco configurado com dados iniciais | [`api/migrations`](api/migrations) + [`api/src/clinic_api/seed.py`](api/src/clinic_api/seed.py) |
-| Export dos fluxos n8n | [`n8n/workflows/`](n8n/workflows) |
-| Instruções de execução e teste | este README |
-| Coleção Postman | [`postman/`](postman) |
-| Vídeo/GIF de demonstração | [`docs/demo/`](docs/demo) (roteiro em `ROTEIRO.md`; gravação a adicionar) |
-| Checklist de testes e evidências | [`docs/CHECKLIST_TESTES.md`](docs/CHECKLIST_TESTES.md) + [`docs/evidencias/`](docs/evidencias) |
+| Export dos fluxos n8n                | [`n8n/workflows/`](n8n/workflows)                                                               |
+| Instruções de execução e teste       | este README                                                                                     |
+| Coleção Postman                      | [`postman/`](postman)                                                                           |
+| Vídeo/GIF de demonstração            | [`docs/demo/`](docs/demo) (roteiro em `ROTEIRO.md`; gravação a adicionar)                       |
+| Checklist de testes e evidências     | [`docs/CHECKLIST_TESTES.md`](docs/CHECKLIST_TESTES.md) + [`docs/evidencias/`](docs/evidencias)  |
