@@ -4,50 +4,50 @@
 
 **Legenda:** ✅ aprovado · ⏳ pendente · ❌ falhou
 
-Os arquivos citados na coluna *Evidência* estão em [`docs/evidencias/`](evidencias).
+Os arquivos citados na coluna _Evidência_ estão em [`docs/evidencias/`](evidencias).
 
 ## 1. Qualidade e testes automatizados
 
-| # | Verificação | Como reproduzir | Status | Evidência |
-|---|---|---|---|---|
-| A1 | Lint e formatação (ruff) | `make lint` | ✅ | `01-make-verify.txt` |
-| A2 | Tipagem estática (`mypy --strict`, 42 arquivos) | `make typecheck` | ✅ | `01-make-verify.txt` |
-| A3 | 65 testes (pytest) com 96% de cobertura: agenda, conflitos, cancelamento, auth, seed | `make test` | ✅ | `01-make-verify.txt` |
-| A4 | Migração Alembic igual aos models, índices únicos parciais e downgrade | `make test` (`test_migrations.py`) | ✅ | `01-make-verify.txt` |
-| A5 | Workflows n8n válidos: versões de node, conexões, referências e ausência de segredos | `make validate-workflows` | ✅ | `01-make-verify.txt` |
-| A6 | Coleção Postman da API: 20 requisições, 28 asserções | `npx newman run …` (ver README) | ✅ | `02-newman-api.txt` |
-| A7 | CI (GitHub Actions): lint, mypy, testes, workflows, compose e build da imagem | push/PR | ⏳ | roda após o push para o GitHub |
+| #   | Verificação                                                                                                                                                                                                    | Como reproduzir                    | Status | Evidência            |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ------ | -------------------- |
+| A1  | Lint e formatação (ruff)                                                                                                                                                                                       | `make lint`                        | ✅     | `01-make-verify.txt` |
+| A2  | Tipagem estática (`mypy --strict`, 46 arquivos)                                                                                                                                                                | `make typecheck`                   | ✅     | `01-make-verify.txt` |
+| A3  | 97 testes (pytest) com 98% de cobertura (mínimo exigido: 95%): agenda, conflitos, corridas de agendamento e cadastro, cancelamento, listagem por período, cache de disponibilidade, auth, health, config, seed | `make test`                        | ✅     | `01-make-verify.txt` |
+| A4  | Migração Alembic igual aos models, índices únicos parciais e downgrade                                                                                                                                         | `make test` (`test_migrations.py`) | ✅     | `01-make-verify.txt` |
+| A5  | Workflows n8n válidos: versões de node, conexões, referências `$('node')` nas expressões, credenciais, retentativa nos nodes de Gmail/OpenAI, ausência de segredos e templates de e-mail sincronizados         | `make validate-workflows`          | ✅     | `01-make-verify.txt` |
+| A6  | Coleção Postman: 32 requisições e 66 asserções (API, regras de negócio, erros e webhook do chat)                                                                                                               | `npx newman run …` (ver README)    | ✅     | `02-newman-api.txt`  |
 
 ## 2. Infraestrutura e integração n8n ↔ API
 
-| # | Cenário | Resultado esperado | Status | Evidência |
-|---|---|---|---|---|
-| I1 | `make up` em volume limpo | `api` e `n8n` *healthy*; bootstrap importa 3 workflows e publica todos | ✅ | `n8n-workflow-principal.png` (status *Published*) |
-| I2 | Webhook sem `message` e sem `audio` | Switch cai no *fallback* → `400 INVALID_REQUEST` | ✅ | `make smoke` |
-| I3 | Sub-workflow agendar com e-mail sem cadastro | `ok=false`, `PATIENT_NOT_FOUND`, nada gravado | ✅ | `03-sub-workflows-n8n.txt` |
-| I4 | Sub-workflow agendar com dados válidos | Consulta gravada (`scheduled`) e dados completos para o e-mail | ✅ | `03-sub-workflows-n8n.txt` |
-| I5 | Repetir o mesmo agendamento (retry do LLM) | `409 APPOINTMENT_ALREADY_BOOKED`, sem segundo e-mail | ✅ | `03-sub-workflows-n8n.txt` |
-| I6 | Cancelar com e-mail de outra pessoa | `APPOINTMENT_NOT_FOUND`, consulta intacta | ✅ | `03-sub-workflows-n8n.txt` |
-| I7 | Cancelar consulta futura e cancelar de novo | 1ª: `cancelled`; 2ª: `APPOINTMENT_ALREADY_CANCELLED` | ✅ | `03-sub-workflows-n8n.txt` |
-| I8 | Gmail indisponível durante agendamento ou cancelamento | Operação mantida, `email_sent=false` informado ao agente | ✅ | `03-sub-workflows-n8n.txt` |
-| I9 | LLM indisponível ou áudio não transcrito | Resposta amigável: `502 AGENT_FAILED` / `422 TRANSCRIPTION_FAILED` | ✅ | web chat (bolha de erro) |
-| I10 | Web chat em desktop e mobile (390 px) | Estados vazio, carregando e erro; gravação só aparece ao gravar | ✅ | `web-chat.png` |
+| #   | Cenário                                                     | Resultado esperado                                                                                                                                                                                                                                                                                                                                                   | Status | Evidência                                         |
+| --- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------- |
+| I1  | `make up` em volume limpo                                   | `api` e `n8n` _healthy_; bootstrap importa 3 workflows e publica todos                                                                                                                                                                                                                                                                                               | ✅     | `n8n-workflow-principal.png` (status _Published_) |
+| I2  | Webhook sem `message` e sem `audio`                         | Switch cai no _fallback_ → `400 INVALID_REQUEST`                                                                                                                                                                                                                                                                                                                     | ✅     | `05-make-smoke.txt`                               |
+| I3  | Sub-workflow agendar com e-mail sem cadastro                | `ok=false`, `PATIENT_NOT_FOUND`, nada gravado                                                                                                                                                                                                                                                                                                                        | ✅     | `03-sub-workflows-n8n.txt`                        |
+| I4  | Sub-workflow agendar com dados válidos                      | Consulta gravada (`scheduled`) e dados completos para o e-mail                                                                                                                                                                                                                                                                                                       | ✅     | `03-sub-workflows-n8n.txt`                        |
+| I5  | Repetir o mesmo agendamento (retry do LLM)                  | `409 APPOINTMENT_ALREADY_BOOKED`, sem segundo e-mail                                                                                                                                                                                                                                                                                                                 | ✅     | `03-sub-workflows-n8n.txt`                        |
+| I6  | Cancelar com e-mail de outra pessoa                         | `APPOINTMENT_NOT_FOUND`, consulta intacta                                                                                                                                                                                                                                                                                                                            | ✅     | `03-sub-workflows-n8n.txt`                        |
+| I7  | Cancelar consulta futura e cancelar de novo                 | 1ª: `cancelled`; 2ª: `APPOINTMENT_ALREADY_CANCELLED`                                                                                                                                                                                                                                                                                                                 | ✅     | `03-sub-workflows-n8n.txt`                        |
+| I8  | Gmail indisponível durante agendamento ou cancelamento      | Operação mantida, `email_sent=false` informado ao agente                                                                                                                                                                                                                                                                                                             | ✅     | `03-sub-workflows-n8n.txt`                        |
+| I9  | LLM indisponível ou áudio não transcrito                    | Resposta amigável: `502 AGENT_FAILED` / `422 TRANSCRIPTION_FAILED`                                                                                                                                                                                                                                                                                                   | ✅     | web chat (bolha de erro)                          |
+| I10 | Web chat em desktop e mobile (390 px), temas claro e escuro | Visual do WhatsApp Web: lista de conversas com busca, filtro de não lidas, prévia e badge; histórico no IndexedDB sobrevive ao reload; bolhas com horário e confirmação de leitura, nota de voz com forma de onda e transcrição, "digitando…" no cabeçalho e na lista, gravação com descartar/enviar, erro como aviso do sistema; no mobile, lista → chat com voltar | ✅     | `web-chat.png`, `web-chat-mobile-dark.png`        |
+| I11 | Painel de consultas (http://localhost:8080/painel.html)     | Lista por período, médico e status com resumo; o nginx injeta a `X-API-Key` só em `GET /api/v1/appointments` e `/doctors`, responde `403` a POST e `404` às demais rotas de `/api/`; a chave não aparece no navegador                                                                                                                                                | ✅     | `painel-consultas.png`, `05-make-smoke.txt`       |
 
 ## 3. Cenários ponta a ponta (OpenAI + Gmail)
 
-Pré-requisitos: `OPENAI_API_KEY` preenchida e credencial *Gmail (Clinic)* conectada.
+Pré-requisitos: `OPENAI_API_KEY` preenchida e credencial _Gmail (Clinic)_ conectada.
 
-| # | Cenário | Entrada | Resultado esperado | Status | Evidência |
-|---|---|---|---|---|---|
-| T01 | Saudação | texto "Olá" | Saudação oficial de `GET /clinic` | ⏳ | |
-| T02 | Horários disponíveis | texto "Quais horários de cardiologia estão livres?" | Agente chama `list_doctors` e `check_availability`; só horários reais | ⏳ | |
-| T03 | Agendamento de paciente já cadastrado | e-mail do seed ou `DEMO_PATIENT_EMAIL` → horário → confirmação | Consulta gravada e e-mail de confirmação recebido | ⏳ | |
-| T04 | Agendamento de paciente novo | e-mail não cadastrado → nome e telefone → horário → confirmação | `register_patient` + `book_appointment`; e-mail recebido | ⏳ | |
-| T05 | Cancelamento | "Quero cancelar" → e-mail → escolha → confirmação | Status `cancelled` no banco e e-mail de cancelamento | ⏳ | |
-| T06 | Valores e formas de pagamento | texto | Valores por especialidade e formas de `GET /payment-info` | ⏳ | |
-| T07 | Pergunta em áudio | `docs/samples/pergunta-pagamento.wav` | `type=audio`: transcrição + texto + mp3 reproduzível | ⏳ | |
-| T08 | Horários por áudio | `docs/samples/pergunta-horarios.wav` ou gravação no chat | Resposta em áudio com horários reais | ⏳ | |
-| T09 | Horário ocupado | pedir um horário já agendado | Agente informa indisponibilidade e oferece alternativas | ⏳ | |
-| T10 | Cancelar consulta passada | paciente `luiza.fernandes@example.com` | Agente explica que não é possível cancelar | ⏳ | |
-| T11 | Fora do escopo | "Me passa uma receita de bolo" | Recusa gentil e retorno ao atendimento | ⏳ | |
-| T12 | Encerramento | "Era só isso, obrigado" | Mensagem de encerramento oficial | ⏳ | |
+| #   | Cenário                               | Entrada                                                               | Resultado esperado                                                                            | Status | Evidência                                        |
+| --- | ------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------ |
+| T01 | Saudação                              | texto "Olá"                                                           | Saudação oficial de `GET /clinic`                                                             | ✅     | `04-cenarios-chat.txt`                           |
+| T02 | Horários disponíveis                  | texto "Quais horários de cardiologia estão livres?"                   | Agente chama `list_doctors` e `check_availability`; só horários reais                         | ✅     | `04-cenarios-chat.txt`                           |
+| T03 | Agendamento de paciente já cadastrado | e-mail do seed ou `CLINIC_DEMO_PATIENT_EMAIL` → horário → confirmação | Consulta gravada (`scheduled`) e e-mail de confirmação enviado pelo Gmail (`email_sent=true`) | ✅     | `06-agendar-cancelar-chat.txt`                   |
+| T04 | Agendamento de paciente novo          | e-mail não cadastrado → nome e telefone → horário → confirmação       | `register_patient` + `book_appointment`; paciente criado e e-mail enviado                     | ✅     | `06-agendar-cancelar-chat.txt`                   |
+| T05 | Cancelamento                          | "Quero cancelar" → e-mail → escolha → confirmação                     | Status `cancelled` no banco e e-mail de cancelamento enviado                                  | ✅     | `06-agendar-cancelar-chat.txt`                   |
+| T06 | Valores e formas de pagamento         | texto                                                                 | Valores por especialidade e formas de `GET /payment-info`                                     | ✅     | `04-cenarios-chat.txt`                           |
+| T07 | Pergunta em áudio                     | `docs/samples/pergunta-pagamento.wav`                                 | `type=audio`: transcrição + texto + mp3 reproduzível                                          | ✅     | `04-cenarios-chat.txt` + `resposta-valores.mp3`  |
+| T08 | Horários por áudio                    | `docs/samples/pergunta-horarios.wav` ou gravação no chat              | Resposta em áudio com horários reais                                                          | ✅     | `04-cenarios-chat.txt` + `resposta-horarios.mp3` |
+| T09 | Horário ocupado                       | pedir um horário já agendado                                          | Agente informa indisponibilidade e oferece alternativas                                       | ✅     | `04-cenarios-chat.txt`                           |
+| T10 | Cancelar consulta passada             | paciente `luiza.fernandes@example.com`                                | Agente explica que não é possível cancelar                                                    | ✅     | `04-cenarios-chat.txt`                           |
+| T11 | Fora do escopo                        | "Me passa uma receita de bolo"                                        | Recusa gentil e retorno ao atendimento                                                        | ✅     | `04-cenarios-chat.txt`                           |
+| T12 | Encerramento                          | "Era só isso, obrigado"                                               | Mensagem de encerramento oficial                                                              | ✅     | `04-cenarios-chat.txt`                           |
