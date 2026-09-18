@@ -150,7 +150,10 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const specialties = pm.response.json();",
+                  "pm.test('4 especialidades do seed', () => pm.expect(specialties).to.have.length(4));",
+                  "pm.test('valor formatado em reais', () => pm.expect(specialties[0].consultation_price.formatted).to.match(/^R\\$ \\d/));"
                 ]
               }
             }
@@ -184,7 +187,10 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const doctors = pm.response.json();",
+                  "pm.test('há médico ativo na especialidade', () => pm.expect(doctors).to.not.be.empty);",
+                  "pm.test('cada médico traz a agenda semanal', () => doctors.forEach((d) => pm.expect(d.working_hours).to.not.be.empty));"
                 ]
               }
             }
@@ -260,6 +266,56 @@
                   "pm.test('há horário livre', () => pm.expect(doctor).to.exist);",
                   "pm.collectionVariables.set('doctor_id', doctor.doctor_id);",
                   "pm.collectionVariables.set('slot_starts_at', doctor.days[0].slots[0]);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultas do período (painel)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/appointments?date_from=&date_to=&status=&doctor_id=",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "appointments"
+              ],
+              "query": [
+                {
+                  "key": "date_from",
+                  "value": ""
+                },
+                {
+                  "key": "date_to",
+                  "value": ""
+                },
+                {
+                  "key": "status",
+                  "value": ""
+                },
+                {
+                  "key": "doctor_id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Alimenta o painel (web/public/painel.html). Sem datas, lista os próximos 7 dias no fuso da clínica; inclui as canceladas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('período padrão de 7 dias', () => { pm.expect(body.date_from).to.match(/^\\d{4}-\\d{2}-\\d{2}$/); pm.expect(body.timezone).to.eql('America/Sao_Paulo'); });",
+                  "pm.test('consultas do seed no período', () => pm.expect(body.appointments).to.not.be.empty);",
+                  "pm.test('ordenadas por horário', () => { const t = body.appointments.map((a) => a.starts_at); pm.expect([...t].sort()).to.eql(t); });"
                 ]
               }
             }
@@ -358,6 +414,36 @@
           ]
         },
         {
+          "name": "Detalhe do paciente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/patients/{{patient_id}}",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "patients",
+                "{{patient_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('mesmo paciente cadastrado', () => pm.expect(pm.response.json().email).to.eql(pm.collectionVariables.get('patient_email')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Agendar consulta",
           "request": {
             "method": "POST",
@@ -379,7 +465,7 @@
             "description": "",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"patient_id\": \"{{patient_id}}\",\n  \"doctor_id\": \"{{doctor_id}}\",\n  \"starts_at\": \"{{slot_starts_at}}\",\n  \"notes\": \"Criado pelo Postman\"\n}",
+              "raw": "{\n  \"patient_id\": {{patient_id}},\n  \"doctor_id\": {{doctor_id}},\n  \"starts_at\": \"{{slot_starts_at}}\",\n  \"notes\": \"Criado pelo Postman\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -425,7 +511,10 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('mesma consulta agendada', () => pm.expect(body.id).to.eql(Number(pm.collectionVariables.get('appointment_id'))));",
+                  "pm.test('dados para o e-mail de confirmação', () => { pm.expect(body.patient.email).to.not.be.empty; pm.expect(body.doctor.full_name).to.not.be.empty; pm.expect(body.price.formatted).to.match(/^R\\$/); });"
                 ]
               }
             }
@@ -465,7 +554,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const ids = pm.response.json().map((a) => a.id);",
+                  "pm.test('inclui a consulta recém-agendada', () => pm.expect(ids).to.include(Number(pm.collectionVariables.get('appointment_id'))));"
                 ]
               }
             }
@@ -559,6 +650,49 @@
           ]
         },
         {
+          "name": "409 – e-mail já cadastrado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{api_base_url}}/patients",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "patients"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Outro Nome\",\n  \"email\": \"{{patient_email}}\",\n  \"phone\": \"(11) 90000-0000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('PATIENT_EMAIL_ALREADY_EXISTS', () => pm.expect(pm.response.json().error.code).to.eql('PATIENT_EMAIL_ALREADY_EXISTS'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "409 – horário já ocupado",
           "request": {
             "method": "POST",
@@ -580,7 +714,7 @@
             "description": "Agenda o mesmo horário duas vezes; a segunda tentativa retorna 409.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"patient_id\": \"{{patient_id}}\",\n  \"doctor_id\": \"{{doctor_id}}\",\n  \"starts_at\": \"{{slot_starts_at}}\"\n}",
+              "raw": "{\n  \"patient_id\": {{patient_id}},\n  \"doctor_id\": {{doctor_id}},\n  \"starts_at\": \"{{slot_starts_at}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -637,7 +771,7 @@
             "description": "",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"patient_id\": \"{{patient_id}}\",\n  \"doctor_id\": \"{{doctor_id}}\",\n  \"starts_at\": \"2030-01-01T03:17:00-03:00\"\n}",
+              "raw": "{\n  \"patient_id\": {{patient_id}},\n  \"doctor_id\": {{doctor_id}},\n  \"starts_at\": \"2030-01-01T03:17:00-03:00\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -653,6 +787,123 @@
                 "exec": [
                   "pm.test('status 422', () => pm.response.to.have.status(422));",
                   "pm.test('SLOT_OUTSIDE_SCHEDULE', () => pm.expect(pm.response.json().error.code).to.eql('SLOT_OUTSIDE_SCHEDULE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 – horário no passado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{api_base_url}}/appointments",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "appointments"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": {{patient_id}},\n  \"doctor_id\": {{doctor_id}},\n  \"starts_at\": \"2020-01-06T08:00:00-03:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 422', () => pm.response.to.have.status(422));",
+                  "pm.test('SLOT_IN_PAST', () => pm.expect(pm.response.json().error.code).to.eql('SLOT_IN_PAST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 – período de disponibilidade inválido",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/availability?date_from=2030-01-10&date_to=2030-01-01",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "availability"
+              ],
+              "query": [
+                {
+                  "key": "date_from",
+                  "value": "2030-01-10"
+                },
+                {
+                  "key": "date_to",
+                  "value": "2030-01-01"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 422', () => pm.response.to.have.status(422));",
+                  "pm.test('INVALID_DATE_RANGE', () => pm.expect(pm.response.json().error.code).to.eql('INVALID_DATE_RANGE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 – médico inexistente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/availability?doctor_id=999",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "availability"
+              ],
+              "query": [
+                {
+                  "key": "doctor_id",
+                  "value": "999"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('DOCTOR_NOT_FOUND', () => pm.expect(pm.response.json().error.code).to.eql('DOCTOR_NOT_FOUND'));"
                 ]
               }
             }
