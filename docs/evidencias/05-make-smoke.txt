@@ -1,0 +1,23 @@
+./scripts/smoke_test.sh
+API (http://localhost:8000/api/v1)
+  ✔ health (200)
+  ✔ recusa requisição sem API key (401)
+  ✔ valores e formas de pagamento (200)
+  ✔ horários disponíveis (200)
+Painel de consultas (http://localhost:8080/painel.html)
+  ✔ página do painel (200)
+  ✔ listagem pelo proxy do nginx, com a API key injetada (200)
+  ✔ proxy recusa escrita (só GET) (403)
+  ✔ proxy não expõe as outras rotas (404)
+Webhook do n8n (http://localhost:8080/webhook/clinic-chat)
+  ✔ requisição inválida cai no fallback do Switch (400)
+  ✔ mensagem de texto (200)
+  ✔ texto entra, texto sai: Olá! Aqui é a assistente da Clínica Essentia Saúde.
+
+Formas de pagamento aceitas:
+- Pix: p…
+  ✔ mensagem de áudio (200)
+  ✔ áudio entra, áudio sai: transcrição "Olá, quais são os valores das consultas e as formas de pagamento?"
+  ✔ resposta em áudio salva em tmp/smoke/reply.mp3 (314112 bytes)
+
+aprovados: 14, reprovados: 0

@@ -1,26 +1,28 @@
-# make verify — 2026-09-16 16:54 -03
 cd api && uv run ruff check . && uv run ruff format --check .
 All checks passed!
-42 files already formatted
+47 files already formatted
 cd api && uv run mypy
-Success: no issues found in 42 source files
+Success: no issues found in 47 source files
 cd api && uv run pytest --cov
 ============================= test session starts ==============================
 platform darwin -- Python 3.13.15, pytest-9.1.1, pluggy-1.6.0
-rootdir: api
+rootdir: /Users/felipicincoo/projetos/pessoal/test-Essentia-Technologies/api
 configfile: pyproject.toml
 testpaths: tests
 plugins: cov-7.1.0, anyio-4.15.1
-collected 65 items
+collected 97 items
 
-tests/test_appointments_api.py ..................                        [ 27%]
-tests/test_auth.py ....                                                  [ 33%]
-tests/test_availability_api.py .......                                   [ 44%]
-tests/test_catalog_api.py ..........                                     [ 60%]
-tests/test_health.py ..                                                  [ 63%]
-tests/test_migrations.py ...                                             [ 67%]
-tests/test_patients_api.py ..........                                    [ 83%]
-tests/test_seed.py ....                                                  [ 89%]
+tests/test_appointments_api.py ..........................                [ 26%]
+tests/test_auth.py ....                                                  [ 30%]
+tests/test_availability_api.py .............                             [ 44%]
+tests/test_cache.py ........                                             [ 52%]
+tests/test_catalog_api.py ...........                                    [ 63%]
+tests/test_config.py ...                                                 [ 67%]
+tests/test_db.py ...                                                     [ 70%]
+tests/test_health.py ....                                                [ 74%]
+tests/test_migrations.py ...                                             [ 77%]
+tests/test_patients_api.py ...........                                   [ 88%]
+tests/test_seed.py ....                                                  [ 92%]
 tests/test_slots.py .......                                              [100%]
 
 ================================ tests coverage ================================
@@ -28,22 +30,22 @@ ______________ coverage: platform darwin, python 3.13.15-final-0 _______________
 
 Name                                      Stmts   Miss Branch BrPart  Cover   Missing
 -------------------------------------------------------------------------------------
-src/clinic_api/api/deps.py                   19      1      2      0    95%   15
-src/clinic_api/api/routers/health.py         18      3      0      0    83%   22-24
-src/clinic_api/config.py                     32      3      0      0    91%   27-28, 43
-src/clinic_api/db.py                         37      4      4      2    85%   26->exit, 44->46, 51, 56, 60-61
-src/clinic_api/errors.py                     42      2      0      0    95%   76-77
-src/clinic_api/models.py                     98      1      4      1    98%   47
-src/clinic_api/seed.py                      124      7     22      2    94%   286, 290-294, 298
-src/clinic_api/services/appointments.py      75      4     28      0    96%   91-95
-src/clinic_api/services/availability.py      51      1     12      1    97%   89
-src/clinic_api/services/patients.py          30      3      6      1    89%   14->16, 36-38
+src/clinic_api/api/deps.py                   25      2      2      0    93%   17, 23
+src/clinic_api/config.py                     38      1      2      0    98%   52
+src/clinic_api/db.py                         38      4      4      2    86%   26->exit, 50->52, 57, 63, 67-68
+src/clinic_api/seed.py                      126      8     24      3    93%   251, 287, 291-295, 299
+src/clinic_api/services/availability.py      85      1     18      1    98%   148
+src/clinic_api/services/patients.py          30      0      6      1    97%   14->16
 -------------------------------------------------------------------------------------
-TOTAL                                       846     29    106      7    96%
+TOTAL                                       988     16    134      7    98%
 
-18 files skipped due to complete coverage.
-============================== 65 passed in 1.88s ==============================
+23 files skipped due to complete coverage.
+Required test coverage of 95.0% reached. Total coverage: 97.95%
+============================== 97 passed in 2.36s ==============================
 uv run --no-project python scripts/validate_workflows.py
-[ok] clinic-book-appointment.json (Clinic – Book appointment, 12 nodes)
-[ok] clinic-cancel-appointment.json (Clinic – Cancel appointment, 9 nodes)
-[ok] clinic-chat-main.json (Clinic Chat – Main, 28 nodes)
+[ok] clinic-book-appointment.json (Clínica – Agendar consulta, 12 nodes)
+[ok] clinic-cancel-appointment.json (Clínica – Cancelar consulta, 9 nodes)
+[ok] clinic-chat-main.json (Clínica – Chat principal, 28 nodes)
+uv run --no-project python scripts/build_email_templates.py --check
+[ok] appointment-booked.html -> clinic-book-appointment.json
+[ok] appointment-cancelled.html -> clinic-cancel-appointment.json

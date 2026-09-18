@@ -1,0 +1,49 @@
+# Agendamento e cancelamento pelo chat, com e-mail pelo Gmail — 2026-09-18 00:10 a 00:25 -03
+# Webhook: http://localhost:8080/webhook/clinic-chat · workflows publicados com os nomes em português
+# Os pacientes usam @example.com (domínio reservado): o Gmail aceita e envia, mas ninguém recebe.
+# A prova do envio é a execução do sub-workflow no n8n: email_sent=true e o id da mensagem
+# devolvido pela Gmail API (tabela ao final). Com CLINIC_DEMO_PATIENT_EMAIL o mesmo fluxo chega na sua caixa.
+
+## T03 · agendamento de paciente já cadastrado (session conf-1758165155)
+paciente: Quero agendar uma consulta de dermatologia. Meu e-mail é pedro.santos@example.com
+assistente: Olá! Aqui é a assistente da Clínica Essentia Saúde. Encontrei vagas com a Dra. Mariana Costa (Dermatologia). [...]
+  - sexta-feira, 18/09 — 09:00 · 09:30 · 10:30 · 11:00 · 11:30
+paciente: Pode ser o primeiro horário que você sugeriu.
+assistente: Posso usar o e-mail pedro.santos@example.com para buscar seu cadastro e seguir com o agendamento para sexta-feira, 18/09 às 09:00?
+paciente: Sim, pode confirmar.
+assistente: Sua consulta com a Dra. Mariana Costa (Dermatologia) foi agendada para sexta-feira, 18/09 às 09:00.
+  Valor: R$ 320,00. Enviei a confirmação para pedro.santos@example.com. Se precisar de mais alguma coisa, avise.
+API: GET /patients/3/appointments → consulta 13 · scheduled · 2026-09-18T09:00:00-03:00 · Dermatologia
+(o pedido de confirmação do e-mail acima levou ao ajuste do prompt: por texto o e-mail é usado direto; só por áudio é repetido)
+
+## T05 · cancelamento (session conf-1758165500)
+paciente: Quero cancelar minha consulta. Meu e-mail é pedro.santos@example.com
+assistente: Olá! Aqui é a assistente da Clínica Essentia Saúde. Encontrei as consultas agendadas para pedro.santos@example.com:
+  1) Sexta-feira, 18/09 — 09:00 com Dra. Mariana Costa (Dermatologia) — R$ 320,00
+  2) Sexta-feira, 18/09 — 10:00 com Dra. Mariana Costa (Dermatologia) — R$ 320,00
+  Qual delas você deseja cancelar? [...] Vou pedir confirmação explícita antes de efetivar o cancelamento.
+paciente: A de dermatologia de sexta-feira 18/09 às 9h.
+assistente: Você confirma o cancelamento da consulta de Dermatologia com Dra. Mariana Costa na sexta-feira, 18/09 às 09:00? Responda "sim" para confirmar. [...]
+paciente: Sim, confirmo.
+assistente: Ok — a consulta foi cancelada com sucesso. Enviamos a confirmação por e-mail. Posso ajudar em mais alguma coisa?
+API: GET /appointments/13 → cancelled · cancelled_at 2026-09-18T00:15:33-03:00
+
+## T04 · agendamento de paciente novo (session conf-novo-1758165906)
+paciente: Oi! Quero marcar uma consulta de pediatria para o meu filho na semana que vem. Meu e-mail é helena.martins@example.com
+assistente: Olá! Aqui é a assistente da Clínica Essentia Saúde. Posso agendar com o Dr. Rafael Almeida (Pediatria). Opções na semana que vem:
+  - segunda-feira, 21/09 às 08:00 · 08:45 · terça-feira, 22/09 às 08:00 · 08:45 · quarta-feira, 23/09 às 08:00
+  Vou usar o e-mail helena.martins@example.com — não encontramos cadastro com esse e-mail. Por favor, informe o nome completo do paciente e um telefone com DDD [...]
+paciente: Pode ser a primeira opção.
+assistente: Perfeito — agendamento escolhido: segunda-feira, 21/09 às 08:00 com Dr. Rafael Almeida (Pediatria). [...] informe o nome completo do paciente e um telefone com DDD [...]
+paciente: Meu nome é Helena Martins e meu telefone é (11) 98765-4321.
+assistente: Resumo do agendamento: Paciente: Helena Martins · Especialidade: Pediatria · Médico: Dr. Rafael Almeida · Data e hora: segunda-feira, 21/09 às 08:00 · Valor: R$ 300,00 · E-mail: helena.martins@example.com. Posso confirmar esse agendamento?
+paciente: Sim, pode confirmar.
+assistente: Consulta confirmada — enviada confirmação por e-mail. Detalhes: Paciente: Helena Martins · Médico: Dr. Rafael Almeida (Pediatria) · Data e hora: segunda-feira, 21/09 às 08:00 · Duração: 45 minutos · Valor: R$ 300,00. Precisa de mais alguma coisa?
+API: GET /patients?email=helena.martins@example.com → id 11 · Helena Martins · (11) 98765-4321 (criada por register_patient)
+
+## Execuções dos sub-workflows no n8n (tabela execution_entity/execution_data)
+| execução | workflow | status | início | email_sent | id da mensagem (Gmail API) |
+|---|---|---|---|---|---|
+| 100 | Clínica – Agendar consulta | success | 2026-09-18 00:14 -03 | true | 1a0b281f7078716d |
+| 106 | Clínica – Cancelar consulta | success | 2026-09-18 00:15 -03 | true | 1a0b283258c558b0 |
+| 111 | Clínica – Agendar consulta | success | 2026-09-18 00:18 -03 | true | 1a0b285ac716e55b |

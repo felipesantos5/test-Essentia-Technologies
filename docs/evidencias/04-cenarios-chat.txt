@@ -1,0 +1,97 @@
+# Cenários de conversa (texto e áudio) — 2026-09-16 18:48 -0300
+# Webhook: http://localhost:8080/webhook/clinic-chat · cada cenário usa um session_id próprio
+# Somente cenários sem efeito colateral (T03–T05 agendam/cancelam e enviam e-mail; ver checklist)
+
+## T01 + T12 · saudação e encerramento
+[T01] paciente: Olá!
+[HTTP 200 · type=text · 6s]
+assistente: Olá! Bem-vindo(a) à Clínica Essentia Saúde. Sou a assistente virtual e posso ajudar com horários disponíveis, agendamentos, cancelamentos e informações sobre valores e formas de pagamento. Como posso ajudar?
+
+[T12] paciente: Era só isso, obrigado!
+[HTTP 200 · type=text · 4s]
+assistente: Obrigada por falar com a Clínica Essentia Saúde! Se precisar de algo mais, é só chamar. Cuide-se!
+
+## T02 · horários disponíveis
+[T02] paciente: Quais horários de cardiologia estão livres esta semana?
+[HTTP 200 · type=text · 22s]
+assistente: Olá! Aqui é a assistente da Clínica Essentia Saúde.
+
+Temos estes horários de Cardiologia disponíveis esta semana (Dr. Carlos Eduardo Lima — R$ 380,00):
+
+- Quinta-feira, 17/09/2026 — 08:00  
+- Quinta-feira, 17/09/2026 — 09:20  
+- Quinta-feira, 17/09/2026 — 10:00  
+- Quinta-feira, 17/09/2026 — 10:40  
+- Quinta-feira, 17/09/2026 — 11:20
+
+Deseja agendar algum desses horários? Se sim, diga qual e informe seu e-mail para que eu verifique e prossiga com o agendamento.
+
+## T06 · valores e formas de pagamento
+[T06] paciente: Quanto custa a consulta e quais as formas de pagamento?
+[HTTP 200 · type=text · 8s]
+assistente: Olá! Aqui é a assistente da Clínica Essentia Saúde.
+
+Valores por especialidade:
+- Clínica Geral: R$ 250,00
+- Cardiologia: R$ 380,00
+- Dermatologia: R$ 320,00
+- Pediatria: R$ 300,00
+
+Formas de pagamento:
+- Pix: pagamento à vista, antecipado ou no dia da consulta.
+- Cartão de crédito: Visa, Mastercard, Elo e American Express — parcelamento em até 3x sem juros.
+- Cartão de débito: Visa, Mastercard e Elo — à vista.
+- Dinheiro: pagamento à vista na recepção.
+
+Quer que eu agende uma consulta em alguma dessas especialidades?
+
+## T07 · pergunta em áudio (valores)
+[T07] paciente: (áudio) pergunta-pagamento.wav
+[HTTP 200 · type=audio · 17s]
+transcrição: Olá, quais são os valores das consultas e as formas de pagamento?
+assistente: Olá! Aqui é a assistente da Clínica Essentia Saúde. Nossos valores: Clínica Geral 250 reais, Cardiologia 380 reais, Dermatologia 320 reais e Pediatria 300 reais. Aceitamos Pix, cartão de crédito (até 3x), débito e dinheiro; quer que eu detalhe as opções de pagamento?
+áudio: audio/mpeg, 305664 bytes → docs/evidencias/resposta-valores.mp3
+
+## T08 · pergunta em áudio (horários)
+[T08] paciente: (áudio) pergunta-horarios.wav
+[HTTP 200 · type=audio · 25s]
+transcrição: Quais horários estão disponíveis para a dermatologia nesta semana?
+assistente: Olá! Aqui é a assistente da Clínica Essentia Saúde. Temos vagas em Dermatologia com Dra. Mariana Costa na sexta-feira, 18/09: 9h, 9h30, 10h30, 11h e 11h30. Deseja agendar algum desses horários?
+áudio: audio/mpeg, 228480 bytes → docs/evidencias/resposta-horarios.mp3
+
+## T09 · horário já ocupado (quinta 08:40 do Dr. Carlos está reservada no seed)
+[T09] paciente: Quero agendar cardiologia com o Dr. Carlos amanhã às 8h40.
+[HTTP 200 · type=text · 17s]
+assistente: Olá! Aqui é a assistente da Clínica Essentia Saúde.
+
+O horário solicitado (amanhã às 08:40) não está disponível com o Dr. Carlos. Posso agendar em um destes horários amanhã (quinta-feira, 17/09/2026):
+
+- 08:00  
+- 09:20  
+- 10:00  
+- 10:40  
+- 11:20
+
+Qual prefere?
+
+## T10 · cancelar consulta passada (luiza.fernandes só tem consulta no passado)
+[T10] paciente: Quero cancelar minha consulta.
+[HTTP 200 · type=text · 5s]
+assistente: Olá! Aqui é a assistente da Clínica Essentia Saúde. Para começar o cancelamento, por favor informe o e-mail cadastrado na consulta.
+
+[T10] paciente: luiza.fernandes@example.com
+[HTTP 200 · type=text · 11s]
+assistente: Não encontrei consultas futuras cadastradas para esse e-mail.
+
+Quer que eu:
+- Verifique outro e-mail? Se sim, informe o e-mail.
+- Ou ajude a agendar uma nova consulta?
+
+Se você lembra os detalhes da consulta (data, horário ou médico), informe também para eu verificar.
+
+## T11 · fora do escopo
+[T11] paciente: Me passa uma receita de bolo de cenoura?
+[HTTP 200 · type=text · 12s]
+assistente: Olá! Aqui é a assistente da Clínica Essentia Saúde.
+
+Desculpe, não posso ajudar com receitas ou conteúdos fora dos serviços da clínica. Posso ajudar com agendamentos, horários, cancelamentos, valores e formas de pagamento. Se preferir, entre em contato pela clínica: (11) 4000-1234 ou contato@clinica-essentia.example. Quer agendar ou consultar horários?
