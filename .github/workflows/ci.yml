@@ -8,10 +8,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   api:
     name: API (lint, types, tests)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: api
@@ -34,6 +39,7 @@ jobs:
   n8n-workflows:
     name: n8n workflow exports
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -41,13 +47,35 @@ jobs:
           python-version: "3.13"
       - name: Validate workflow JSON
         run: python scripts/validate_workflows.py
+      - name: Check e-mail templates are built into the workflows
+        run: python scripts/build_email_templates.py --check
 
   compose:
-    name: Docker Compose config
+    name: Docker Compose config and API container
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLINIC_API_KEY: ci
+      N8N_ENCRYPTION_KEY: ci
     steps:
       - uses: actions/checkout@v5
       - name: Validate compose file
-        run: CLINIC_API_KEY=ci N8N_ENCRYPTION_KEY=ci docker compose config --quiet
-      - name: Build API image
-        run: docker build -t essentia-clinic-api:ci api
+        run: docker compose config --quiet
+      - name: Validate nginx config
+        run: |
+          docker run --rm --add-host n8n:127.0.0.1 --add-host api:127.0.0.1 \
+            -e CLINIC_API_KEY -e NGINX_ENVSUBST_FILTER='^CLINIC_API_KEY$' \
+            -v "$PWD/web/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro" \
+            nginx:1.30-alpine nginx -t
+      # Migrations, seed and healthcheck run for real; no OpenAI or Google secrets needed.
+      - name: Start the API container and check it is seeded
+        run: |
+          docker compose up -d --build --wait api
+          curl -fsS http://localhost:8000/api/v1/health
+          curl -fsS -H "X-API-Key: ci" http://localhost:8000/api/v1/specialties | grep -q Cardiologia
+      - name: Show API logs on failure
+        if: failure()
+        run: docker compose logs api
+      - name: Stop the stack
+        if: always()
+        run: docker compose down -v
